@@ -22,6 +22,36 @@ class TokenTests(unittest.TestCase):
         self.write([token(1,120,input_tokens=100,cached_input_tokens=80,output_tokens=20),token(1,120),token(2,250)])
         result=self.poll();self.assertEqual(result['total'],250);self.assertEqual(result['days']['2026-10-01'],120);self.assertEqual(result['days']['2026-10-02'],130)
         self.assertEqual(len(result['days']),31)
+    def test_food_rewards_use_persistent_source_and_total_across_months(self):
+        from pet_care import PetCare
+        care=PetCare(self.home/'care.sqlite3',clock=lambda:self.now)
+        old=token(1,9_000_000);old['timestamp']=datetime(2026,9,30,23,59).astimezone().isoformat()
+        self.write([old]);first=self.poll()
+        self.assertEqual(care.update(first)['bread'],0)
+        self.write([token(1,10_000_000)],'a')
+        snapshot=TokenUsageIndex(self.cache,self.home).poll(self.now)
+        self.assertEqual(snapshot['source_id'],first['source_id'])
+        self.assertEqual(snapshot['total'],1_000_000)
+        self.assertEqual(snapshot['all_total'],10_000_000)
+        self.assertEqual(care.update(snapshot)['bread'],1)
+        self.assertEqual(care.update(self.poll())['bread'],1)
+    def test_cancelled_scan_is_partial(self):
+        self.write([token(1,100)])
+        self.assertTrue(self.index.poll(self.now,stop=lambda:True)['partial'])
+    def test_reward_window_ignores_old_records_and_works_with_partial_logs(self):
+        from pet_care import PetCare
+        since=datetime(2026,10,2).timestamp()
+        care=PetCare(self.home/'care.sqlite3',clock=lambda:since)
+        index=TokenUsageIndex(self.cache,self.home,reward_since=care.reward_since)
+        self.write([token(1,20_000_000),token(2,21_000_000)])
+        (self.home/'sessions/rollout-unknown.jsonl').write_text('{}\n')
+        snapshot=index.poll(self.now)
+        self.assertTrue(snapshot['partial'])
+        self.assertEqual(snapshot['all_total'],21_000_000)
+        self.assertEqual(snapshot['reward_total'],1_000_000)
+        self.assertEqual(care.update(snapshot)['bread'],1)
+        (self.home/'sessions/rollout-old.jsonl').write_text(json.dumps(token(1,7_000_000))+'\n')
+        self.assertEqual(care.update(index.poll(self.now))['bread'],1)
     def test_repeated_poll_restart_append_and_partial_record(self):
         self.write([token(1,100)]);self.assertEqual(self.poll()['total'],100)
         self.assertEqual(TokenUsageIndex(self.cache,self.home).poll(self.now)['total'],100)

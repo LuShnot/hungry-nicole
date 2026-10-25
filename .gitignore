@@ -23,3 +23,11 @@ outputs/**
 *.zip
 *.7z
 .DS_Store
+
+.tmp/
+
+BailongEnhanced/
+
+release-manual/
+
+references/

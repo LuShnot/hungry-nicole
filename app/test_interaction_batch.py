@@ -97,9 +97,9 @@ class InteractionTests(unittest.TestCase):
         self.assertTrue(s.fields['self_talk'].isChecked())
 
     def test_menus_have_separate_roles_and_share_live_settings(self):
-        menu=QMenu();self.pet.build_menu(menu);self.assertEqual(len([a for a in menu.actions() if not a.isSeparator()]),9)
+        menu=QMenu();self.pet.build_menu(menu);self.assertEqual(len([a for a in menu.actions() if not a.isSeparator()]),10)
         panel=next(a for a in menu.actions() if a.objectName()=='command_bubble');self.assertTrue(panel.isCheckable())
-        tray=QMenu();self.pet.build_menu(tray,tray=True);self.assertEqual(len([a for a in tray.actions() if not a.isSeparator()]),6)
+        tray=QMenu();self.pet.build_menu(tray,tray=True);self.assertEqual(len([a for a in tray.actions() if not a.isSeparator()]),7)
         self.assertIn('找回组件并关闭穿透',[a.text() for a in tray.actions()])
         pin=next(a for a in menu.findChildren(__import__('PySide6.QtGui',fromlist=['QAction']).QAction) if a.objectName()=='command_pin')
         pin.trigger();settle(self.pet);self.assertFalse(self.pet.settings['on_top'])

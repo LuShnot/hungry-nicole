@@ -41,7 +41,7 @@ class ActivityThread(QThread):
         super().__init__(parent)
         self.stop=threading.Event()
         self.tail=RolloutTail(home)
-        self.token_index=TokenUsageIndex(STATE_DIR/'token-usage.sqlite3',home);self.last_token_scan=0;self.token_wake=threading.Event();self.token_reader=None
+        self.token_index=TokenUsageIndex(STATE_DIR/'token-usage.sqlite3',home,reward_since=getattr(parent,'care_reward_since',None));self.last_token_scan=0;self.token_wake=threading.Event();self.token_reader=None
         self.token_runs=RefreshRuns()
         self.last_presence_scan=0;self.presence_reader=None;self.desktop_open=None;self.last_read_scan=0;self.seed_status_sent=False;self.last_name_scan=-10;self.conversation_names={}
         from session_read_state import ReadAcknowledgements

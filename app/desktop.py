@@ -6,6 +6,7 @@ import math
 import os
 import random
 import shutil
+import sqlite3
 import sys
 import time
 import threading
@@ -26,6 +27,7 @@ from status_reactions import StatusReactions
 from continuous_work import ContinuousWork
 from sustained_player import SustainedPlayback
 from sustained_assets import profile_paths,seam_items
+from pet_care import PetCare,HUNGRY_MESSAGE,TOKENS_PER_BREAD
 
 class DesktopPet(EnhancedPet):
     LAZY=True
@@ -55,6 +57,10 @@ class DesktopPet(EnhancedPet):
         self.reactions=StatusReactions(time.monotonic());self.last_reaction=None
         self.character_dir=STATE_DIR/'characters';self.character_dir.mkdir(exist_ok=True)
         self.created_at=time.monotonic();self.decode_error=None
+        self.care=None;self.care_state=None;self.care_error=False;self.care_reward_since=None
+        try:
+            self.care=PetCare(STATE_DIR/'pet-care.sqlite3');self.care_reward_since=self.care.reward_since
+        except (OSError,sqlite3.Error):self.care_error=True
         super().__init__(monitor)
         # A hidden Qt/native owner can also suppress its tool windows. Keep a
         # logical owner for data/placement, with an independent native card.
@@ -113,6 +119,49 @@ class DesktopPet(EnhancedPet):
             self.video_yield=VideoYield(self)
         self.save_settings()
         self.schedule_animation()
+        self.care_timer=QTimer(self);self.care_timer.setInterval(10000)
+        self.care_timer.timeout.connect(self.update_care);self.care_timer.start()
+        self.update_care()
+
+    def update_care(self,snapshot=None,feed=False):
+        try:
+            if self.care is None:self.care=PetCare(STATE_DIR/'pet-care.sqlite3')
+            if self.activity:self.activity.token_index.reward_since=self.care.reward_since
+            # Defer hunger speech while a higher-priority completion message is
+            # visible, or when the user has hidden the panel. Persist the reminder.
+            visible=self.bubble.isVisible() and self.bubble.panel_page=='status'
+            held=time.monotonic()<self.status_hold and getattr(self,'message_priority',0)>3
+            self.care_state=self.care.update(snapshot,feed=feed,claim_hunger=visible and not held and not feed)
+            self.care_error=False
+        except (OSError,sqlite3.Error):
+            self.care_error=True
+            if feed:self.say('食物记录暂时无法保存，请稍后再试。',6000)
+            return
+        if self.care_state['notify']:self.say(HUNGRY_MESSAGE,10000)
+        if feed:
+            if self.care_state['fed']:text=f"谢谢主人～ 饱腹度 {self.care_state['fullness']}%"
+            elif self.care_state['fullness']==100:text='已经吃饱啦～ 面包留着下次吃。'
+            else:text='暂时没有面包，每累计 100 万 token 可以获得一个。'
+            self.say(text,6000)
+
+    def add_food_menu(self,menu):
+        food=QMenu('食物',menu);menu.addMenu(food);food.setObjectName('pet_food_menu')
+        def populate():
+            self.update_care();food.clear()
+            if self.care_error or not self.care_state:
+                food.addAction('食物记录暂不可用，请稍后重试').setEnabled(False);return
+            state=self.care_state
+            food.addAction(f"饱腹度：{state['fullness']}%").setEnabled(False)
+            if state['fullness']<=30:food.addAction(HUNGRY_MESSAGE).setEnabled(False)
+            bread=food.addAction(f"面包 × {state['bread']}（喂食 +30%）")
+            bread.setObjectName('feed_bread');bread.setEnabled(state['bread']>0 and state['fullness']<100)
+            bread.triggered.connect(lambda checked=False:self.update_care(feed=True))
+            food.addSeparator()
+            progress=(f"下个面包：{state['remainder']:,} / {TOKENS_PER_BREAD:,} token"
+                      if state['initialized'] else '等待本机 Codex 用量，累计启用后的消耗')
+            food.addAction(progress).setEnabled(False)
+        food.aboutToShow.connect(populate)
+        populate()
 
     def poll_codex_presence(self):
         if not self.settings.get('codex_exit') or self._codex_polling or self._codex_closing:return
@@ -451,6 +500,8 @@ class DesktopPet(EnhancedPet):
 
     @measured('ui_activity')
     def on_activity(self,event):
+        if event.get('kind')=='token_usage' and hasattr(self,'care'):
+            self.update_care(snapshot=event.get('snapshot'))
         if event.get('kind')=='animation_lifecycle':
             self.reactions.confirm(event.get('session',''),event.get('turn',''),event.get('active',False),time.monotonic());return
         if event.get('kind')=='connection_health':
@@ -734,13 +785,16 @@ class DesktopPet(EnhancedPet):
         action.triggered.connect(lambda value=False,c=command:QTimer.singleShot(0,self,lambda:self.execute_command(c,value)))
         return action
     def build_menu(self,menu,tray=False):
+        for food in menu.findChildren(QMenu,'pet_food_menu'):food.deleteLater()
         menu.clear()
         if tray:
             for command in ('recover','visible','status','settings'):self.menu_command(menu,command)
+            self.add_food_menu(menu)
             display=menu.addMenu('显示方式');self.menu_command(display,'character');self.menu_command(display,'bubble');self.menu_command(display,'detach')
             for mode in ('auto','mini','minimal'):self.menu_command(display,'mode_'+mode)
             menu.addSeparator();self.menu_command(menu,'quit');return
         for command in ('bubble','status','chat','walk'):self.menu_command(menu,command)
+        self.add_food_menu(menu)
         desktop=menu.addMenu('桌面操作')
         for command in ('character','pin','lock','through','detach'):self.menu_command(desktop,command)
         display=desktop.addMenu('卡片模式')
@@ -971,7 +1025,7 @@ class DesktopPet(EnhancedPet):
         from typography import LATIN_FAMILY,CHINESE_FAMILY,register_font
         report=self.bubble.report
         report_data=snapshot.get('report') or {}
-        value.update(ui_revision=87,wander_horizontal_only=self.settings['wander_horizontal_only'],wander_corridor='manual_home_local',chinese_font=CHINESE_FAMILY,typography_style="noto_chakra_medium",chat_config_safe_commit=True,chat_response_formats="sse_json",chat_actionable_errors=True,panel_detached=self.settings.get("panel_detached",False),codex_exit_enabled=self.settings.get("codex_exit",False),glide_interval_ms=16,update_download_channel_fallback=True,reset_countdown_format='hours_minutes',read_terminal_turn_acknowledgement=True,reset_countdown_priority=True,customizable_capsule_shortcut=True,capsule_shortcut=self.settings['capsule_action'],codex_startup_supported=True,hourly_token_entry='today_tokens',unified_refresh=True,icon_only_header_actions=True,refresh_icon_style='single_arc',icon_motion_speed=1.2,busy_icon_style='alternating_liquid',idle_icon_style='slow_liquid_orbit',liquid_status_family=True,status_icon_morph=True,status_waiting_live_flags=True,island_quota_segmented=False,island_quota_style='open_arc',island_quota_numeric_only=True,native_shrink_landing=True,shrink_preserves_chart_progress=True,native_landing_hold_ms=0,cached_chart_layers=True,stable_report_scrollbar=True,animated_deck_tabs=True,incremental_deck_switch=True,prewarmed_transition_landing=True,monotone_container_motion=True,status_updates_preserve_surface=True,capsule_pixel_handoff=True,atomic_transition_handoff=True,clean_report_dismiss=True,stable_disclosure_gutter=True,unified_card_motion=True,report_continuous_shape=True,animated_disclosures=True,week_quota_palette=True,continuous_surface_morph=True,shared_status_glyph=True,apple_island_reference=True,panel_shrink_spring=True,panel_dismiss_spring=True,panel_shrink_ms=440,panel_dismiss_ms=360,lossless_asset_pack=self.material_store.current=='hd',lossless_asset_encoding=True,lightweight_resampling=self.material_store.current=='light',lightweight_maintenance=True,optional_webm_converter=True,shared_version_assets=True,fair_activity_targets=True,persistent_completion_ledger=True,cached_log_discovery=True,chat_incremental_stream=True,installation_ready_receipt=True,semantic_controls=True,labeled_header_actions=False,editor_keyboard_save=True,capability_health=True,connection_path_picker=True,report_scope_groups=True,report_model_filter_explicit=True,settings_draft_merge=True,settings_dirty_fields_only=True,context_menu_root_items=8,tray_recovery_menu=True,editor_returns_to_origin=True,chat_destructive_confirmation=True,quota_query_silent=True,subagent_completion_filter=True,ring_persistent_legend=False,quota_display_layout='labeled_bars',quota_reset_per_window=True,today_tokens_direct_value=True,book_reference_count=27,island_click_opens_normal=True,conversation_name_pointer_feedback=True,context_compaction_tracking=True,conversation_name_navigation=True,codex_live_status_connected=bool(self.activity and self.activity.live_reader and self.activity.live_reader.connected),daily_report_incremental_updates=True,daily_report_chart_start_after_show=True,quota_source_header_visible=False,incremental_status_refresh=True,skip_unchanged_log_reads=True,single_runtime_write=True,read_acknowledgement_history=True,read_acknowledgement_settle_seconds=4,conversation_names_visible=True,completed_conversation_background=True,independent_conversation_scroll=True,operation_status_summary=True,session_read_tracking=True,conversation_status_limit=2,codex_connection_diagnostics=True,portable_codex_discovery=True,island_bubble=True,island_quota_priority=True,bubble_mode=self.bubble.bubble_mode,bubble_auto_compact=self.bubble.auto_compact,island_visible=self.bubble.is_island(),panel_transition_stable_canvas=True,panel_transition_content_blend=True,chart_entry_animation=True,daily_report=True,daily_report_stable_surface=True,token_scan_background=True,token_models=len({r['model'] for r in report_data.get('daily_models',[])}),token_report_hours=len(report_data.get('hours',[])),daily_report_visible=bool(report and report.isVisible()),daily_report_aligned=not report or not report.isVisible() or (report.content_geometry().width()==self.bubble.width() and report.content_geometry().x()==self.bubble.x() and report.content_geometry().bottom()+1==self.bubble.y()-6),ring_center_y=None,daily_report_open=bool(self.bubble.report and self.bubble.report.requested),inline_explanations_only=True,version=VERSION,status_icon_animated=True,status_icon_unread=len(self.bubble.status_indicator.unread),status_icon_acknowledgement=True,status_icon_state=self.bubble.status_indicator.visual(),status_icon_timer=self.bubble.status_indicator.timer.isActive(),panel_transition_no_fade=True,panel_transition_staged_layout=True,panel_transition_ms=480,idle_cache_mb=round(idle_cache['bytes']/1048576,2),idle_cache_limit_mb=idle_cache['limit']/1048576,idle_cache_hits=idle_cache['hits'],integrated_panels=True,panel_page=self.bubble.panel_page,separate_panel_windows=sum(bool(p and p.isWindow()) for p in (self.settings_dialog,self.chat_window)),expanded_details_grouped=True,latin_font=LATIN_FAMILY,latin_font_loaded=register_font(),status_height_transition_ms=300,status_transition_synchronized=True,token_chart_range=self.bubble.token_range,
+        value.update(ui_revision=87,wander_horizontal_only=self.settings['wander_horizontal_only'],wander_corridor='manual_home_local',chinese_font=CHINESE_FAMILY,typography_style="noto_chakra_medium",chat_config_safe_commit=True,chat_response_formats="sse_json",chat_actionable_errors=True,panel_detached=self.settings.get("panel_detached",False),codex_exit_enabled=self.settings.get("codex_exit",False),glide_interval_ms=16,update_download_channel_fallback=True,reset_countdown_format='hours_minutes',read_terminal_turn_acknowledgement=True,reset_countdown_priority=True,customizable_capsule_shortcut=True,capsule_shortcut=self.settings['capsule_action'],codex_startup_supported=True,hourly_token_entry='today_tokens',unified_refresh=True,icon_only_header_actions=True,refresh_icon_style='single_arc',icon_motion_speed=1.2,busy_icon_style='alternating_liquid',idle_icon_style='slow_liquid_orbit',liquid_status_family=True,status_icon_morph=True,status_waiting_live_flags=True,island_quota_segmented=False,island_quota_style='open_arc',island_quota_numeric_only=True,native_shrink_landing=True,shrink_preserves_chart_progress=True,native_landing_hold_ms=0,cached_chart_layers=True,stable_report_scrollbar=True,animated_deck_tabs=True,incremental_deck_switch=True,prewarmed_transition_landing=True,monotone_container_motion=True,status_updates_preserve_surface=True,capsule_pixel_handoff=True,atomic_transition_handoff=True,clean_report_dismiss=True,stable_disclosure_gutter=True,unified_card_motion=True,report_continuous_shape=True,animated_disclosures=True,week_quota_palette=True,continuous_surface_morph=True,shared_status_glyph=True,apple_island_reference=True,panel_shrink_spring=True,panel_dismiss_spring=True,panel_shrink_ms=440,panel_dismiss_ms=360,lossless_asset_pack=self.material_store.current=='hd',lossless_asset_encoding=True,lightweight_resampling=self.material_store.current=='light',lightweight_maintenance=True,optional_webm_converter=True,shared_version_assets=True,fair_activity_targets=True,persistent_completion_ledger=True,cached_log_discovery=True,chat_incremental_stream=True,installation_ready_receipt=True,semantic_controls=True,labeled_header_actions=False,editor_keyboard_save=True,capability_health=True,connection_path_picker=True,report_scope_groups=True,report_model_filter_explicit=True,settings_draft_merge=True,settings_dirty_fields_only=True,context_menu_root_items=10,tray_recovery_menu=True,editor_returns_to_origin=True,chat_destructive_confirmation=True,quota_query_silent=True,subagent_completion_filter=True,ring_persistent_legend=False,quota_display_layout='labeled_bars',quota_reset_per_window=True,today_tokens_direct_value=True,book_reference_count=27,island_click_opens_normal=True,conversation_name_pointer_feedback=True,context_compaction_tracking=True,conversation_name_navigation=True,codex_live_status_connected=bool(self.activity and self.activity.live_reader and self.activity.live_reader.connected),daily_report_incremental_updates=True,daily_report_chart_start_after_show=True,quota_source_header_visible=False,incremental_status_refresh=True,skip_unchanged_log_reads=True,single_runtime_write=True,read_acknowledgement_history=True,read_acknowledgement_settle_seconds=4,conversation_names_visible=True,completed_conversation_background=True,independent_conversation_scroll=True,operation_status_summary=True,session_read_tracking=True,conversation_status_limit=2,codex_connection_diagnostics=True,portable_codex_discovery=True,island_bubble=True,island_quota_priority=True,bubble_mode=self.bubble.bubble_mode,bubble_auto_compact=self.bubble.auto_compact,island_visible=self.bubble.is_island(),panel_transition_stable_canvas=True,panel_transition_content_blend=True,chart_entry_animation=True,daily_report=True,daily_report_stable_surface=True,token_scan_background=True,token_models=len({r['model'] for r in report_data.get('daily_models',[])}),token_report_hours=len(report_data.get('hours',[])),daily_report_visible=bool(report and report.isVisible()),daily_report_aligned=not report or not report.isVisible() or (report.content_geometry().width()==self.bubble.width() and report.content_geometry().x()==self.bubble.x() and report.content_geometry().bottom()+1==self.bubble.y()-6),ring_center_y=None,daily_report_open=bool(self.bubble.report and self.bubble.report.requested),inline_explanations_only=True,version=VERSION,status_icon_animated=True,status_icon_unread=len(self.bubble.status_indicator.unread),status_icon_acknowledgement=True,status_icon_state=self.bubble.status_indicator.visual(),status_icon_timer=self.bubble.status_indicator.timer.isActive(),panel_transition_no_fade=True,panel_transition_staged_layout=True,panel_transition_ms=480,idle_cache_mb=round(idle_cache['bytes']/1048576,2),idle_cache_limit_mb=idle_cache['limit']/1048576,idle_cache_hits=idle_cache['hits'],integrated_panels=True,panel_page=self.bubble.panel_page,separate_panel_windows=sum(bool(p and p.isWindow()) for p in (self.settings_dialog,self.chat_window)),expanded_details_grouped=True,latin_font=LATIN_FAMILY,latin_font_loaded=register_font(),status_height_transition_ms=300,status_transition_synchronized=True,token_chart_range=self.bubble.token_range,
             token_history_days=len(snapshot.get('history_days',{})),token_hour_slots=len(snapshot.get('hours',[])),
             mode=self.mode,action_state=self.gate.state,mouse_through=self.settings['mouse_through'],scale=self.settings['scale'],
             facing=self.walk_direction,decoder_queue=self.player.frames.qsize() if self.player else 0,first_frame_cache=len(self.player.first) if self.player else 0,
@@ -1016,6 +1070,7 @@ class DesktopPet(EnhancedPet):
             if not self._update_exit_pending:self._update_exit_pending=True;self.updates.idle.connect(self.close)
             event.ignore();return
         self._codex_closing=True;self.codex_timer.stop()
+        if hasattr(self,'care_timer'):self.care_timer.stop()
         self.cancel_pointer();self.sustained.cancel();self.codex_navigation.close()
         if self.bubble.report:self.bubble.report.animation.stop();self.bubble.report.hide()
         if self.chat_window:self.chat_window.shutdown()

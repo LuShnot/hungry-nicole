@@ -27,7 +27,8 @@ def month_bounds(now=None):
     return start,end
 
 class TokenUsageIndex:
-    def __init__(self,path,home=None):
+    def __init__(self,path,home=None,reward_since=None):
+        self.reward_since=reward_since
         self.path=Path(path);self.path.parent.mkdir(parents=True,exist_ok=True);self.legacy_path=self.path
         self.home=__import__('codex_connection').data_home(home)
         # Each selected source has an independent index; retain the old database
@@ -35,6 +36,7 @@ class TokenUsageIndex:
         import hashlib,os
         source=os.path.normcase(str(self.home.resolve()))
         key=hashlib.sha256(source.encode('utf-8')).hexdigest()[:16]
+        self.source_id=key
         self.path=self.path.with_name(self.path.stem+'-source-'+key+self.path.suffix)
         self.format_known={}
         self.legacy_import_pending=False
@@ -102,6 +104,7 @@ class TokenUsageIndex:
                     else:readable+=1
                 except OSError:errors+=1
             result=self.snapshot(db,now,errors);result.update(log_files=len(files),readable_files=readable,format_unknown=bool(schema_errors))
+            if stop():result['partial']=True
             if self.legacy_import_pending:
                 result['partial']=True
                 result['legacy_migration_pending']=True
@@ -122,10 +125,15 @@ class TokenUsageIndex:
         for hour,value in db.execute("SELECT strftime('%H',stamp,'unixepoch','localtime'),SUM(tokens) FROM usage WHERE stamp>=? AND stamp<=? GROUP BY strftime('%H',stamp,'unixepoch','localtime')",(midnight.timestamp(),now)):
             hours[int(hour)]=value
         from token_analytics import report_snapshot
-        return {'report':report_snapshot(db,now),'month':start.strftime('%Y-%m'),'days':days,'total':sum(days.values()),
+        result={'report':report_snapshot(db,now),'month':start.strftime('%Y-%m'),'days':days,'total':sum(days.values()),
                 'history_days':history,'history_start':min(history,default=None),'all_total':sum(history.values()),
                 'today':current.strftime('%Y-%m-%d'),'hours':hours,
-                'checked':now,'partial':bool(errors),'source':'本机 Codex 日志'}
+                'checked':now,'partial':bool(errors),'source':'本机 Codex 日志','source_id':self.source_id}
+        if self.reward_since is not None:
+            since=self.reward_since
+            total=db.execute('SELECT COALESCE(SUM(tokens),0) FROM usage WHERE stamp>=? AND stamp<=?',(since,now)).fetchone()[0]
+            result.update(reward_since=since,reward_total=total)
+        return result
 
 
 TOKEN_RANGES=('all','30d','7d','day')
