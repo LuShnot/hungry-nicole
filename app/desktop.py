@@ -59,6 +59,7 @@ class DesktopPet(EnhancedPet):
         self.character_dir=STATE_DIR/'characters';self.character_dir.mkdir(exist_ok=True)
         self.created_at=time.monotonic();self.decode_error=None
         self.care=None;self.care_state=None;self.care_error=False;self.care_reward_since=None
+        self.meal_reminder=None;self.meal_notice=None
         try:
             self.care=PetCare(STATE_DIR/'pet-care.sqlite3');self.care_reward_since=self.care.reward_since
         except (OSError,sqlite3.Error):self.care_error=True
@@ -122,7 +123,25 @@ class DesktopPet(EnhancedPet):
         self.schedule_animation()
         self.care_timer=QTimer(self);self.care_timer.setInterval(10000)
         self.care_timer.timeout.connect(self.update_care);self.care_timer.start()
+        self.care_timer.timeout.connect(self.update_meal_reminders)
         self.update_care()
+
+    def update_meal_reminders(self,now=None):
+        visible=not self._desktop_hidden and not self._video_yielded and (self.isVisible() or self.bubble.isVisible())
+        if not self.settings.get('meal_reminders',True) or not visible:
+            if self.meal_notice:self.meal_notice.hide()
+            return
+        # Leave editors and completion reminders undisturbed; retry within five minutes.
+        available=self.bubble.panel_page=='status' and not (time.monotonic()<self.status_hold and getattr(self,'message_priority',0)>3)
+        if not available:return
+        from meal_reminders import MealReminders
+        try:
+            if self.meal_reminder is None:self.meal_reminder=MealReminders(STATE_DIR/'meal-reminders.sqlite3')
+            if not self.meal_reminder.claim(self.settings,now=now):return
+        except (OSError,sqlite3.Error):return
+        from meal_notice import MealNotice
+        if self.meal_notice is None:self.meal_notice=MealNotice(self)
+        self.meal_notice.present()
 
     def update_care(self,snapshot=None,feed=False):
         try:
@@ -1110,6 +1129,7 @@ class DesktopPet(EnhancedPet):
             event.ignore();return
         self._codex_closing=True;self.codex_timer.stop()
         if hasattr(self,'care_timer'):self.care_timer.stop()
+        if self.meal_notice:self.meal_notice.close()
         self.cancel_pointer();self.sustained.cancel();self.codex_navigation.close()
         if self.bubble.report:self.bubble.report.animation.stop();self.bubble.report.hide()
         if self.chat_window:self.chat_window.shutdown()

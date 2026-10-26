@@ -50,6 +50,18 @@ class ShortcutTests(unittest.TestCase):
             self.click('refresh');self.assertTrue(b.shortcut_button.busy);self.assertFalse(b.shortcut_button.isEnabled())
             b.shortcut_button.click();signal.emit.assert_called_once_with()
             b.finish_refresh(False);self.assertTrue(b.shortcut_button.isEnabled());self.assertFalse(b.shortcut_button.result)
+    def test_meal_times_are_editable_and_saved_independently_of_automatic_lines(self):
+        from PySide6.QtCore import QTime
+        self.pet.open_settings();settle(self.pet);s=self.pet.settings_dialog
+        s.tabs.setCurrentIndex(4)
+        self.assertTrue(s.fields['meal_reminders'].isChecked())
+        self.assertFalse(s.fields['self_talk'].isChecked())
+        self.assertEqual(s.fields['meal_lunch_time'].time().toString('HH:mm'),'11:40')
+        s.fields['meal_lunch_time'].setTime(QTime(12,15));s.fields['meal_dinner_time'].setTime(QTime(18,30));s.apply()
+        saved=json.loads((self.root/'settings.json').read_text(encoding='utf-8'))
+        self.assertEqual(saved['meal_lunch_time'],'12:15');self.assertEqual(saved['meal_dinner_time'],'18:30')
+        s.fields['meal_reminders'].setChecked(False);s.apply()
+        self.assertFalse(self.pet.settings['meal_reminders']);self.assertFalse(s.fields['meal_lunch_time'].isEnabled())
     def test_settings_draft_validates_url_and_reloads_saved_choice(self):
         self.pet.open_settings();settle(self.pet);s=self.pet.settings_dialog
         s.shortcut.setCurrentIndex(s.shortcut.findData('website'));s.website.setText('file:///C:/Windows/cmd.exe');s.apply()

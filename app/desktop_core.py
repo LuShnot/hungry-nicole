@@ -14,6 +14,7 @@ DEFAULTS=dict(schema=2,scale=1.0,playback_speed=1.0,action_gap=2.0,
     commentary=True,sound=True,bubble=True,quota_visible=True,self_talk=False,character_visible=True,card_anchor=None,panel_detached=False,codex_exit=False,
     status_actions=True,status_action_interval=12.,status_response_revision=2,update_checks=False,token_chart_range='all',bubble_mode='auto',
     capsule_action=DEFAULT_ACTION,capsule_website='',talk_min=30.0,talk_max=90.0,talk_quiet=True,
+    meal_reminders=True,meal_lunch_time='11:40',meal_dinner_time='17:20',
     talk_lines=['忙完记得休息一下。','我在这里陪着你。','今天也一起把小事做好吧。'],
     facing=1,character='builtin',character_preferences={},chat_follow=False)
 
@@ -51,6 +52,9 @@ def normalized(raw):
         out['wander_home']=dict(screen=home['screen'][:128],rx=max(0,min(1,rx)),ry=max(0,min(1,ry)))
     except (KeyError,TypeError,ValueError):out['wander_home']=None
     out['talk_max']=max(out['talk_min'],out['talk_max'])
+    from meal_reminders import MEAL_TIMES,valid_time
+    for key,default in MEAL_TIMES.items():
+        if not valid_time(out[key]):out[key]=default
     out['talk_lines']=[str(s)[:500] for s in out['talk_lines'][:200]] if isinstance(out['talk_lines'],list) else DEFAULTS['talk_lines'][:]
     out['facing']=-1 if out['facing']==-1 else 1
     if out['token_chart_range'] not in ('all','30d','7d','day'):out['token_chart_range']='all'

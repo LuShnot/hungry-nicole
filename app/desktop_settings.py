@@ -1,10 +1,10 @@
 """Non-modal settings, live controls and character diagnostics."""
 import copy
 import threading
-from PySide6.QtCore import Qt,QThread,Signal
+from PySide6.QtCore import Qt,QThread,Signal,QTime
 from PySide6.QtGui import QShortcut,QKeySequence
 from PySide6.QtWidgets import (QDialog,QVBoxLayout,QHBoxLayout,QFormLayout,QTabWidget,QWidget,
-    QCheckBox,QDoubleSpinBox,QPlainTextEdit,QPushButton,QComboBox,QLabel,QFileDialog,QMessageBox,QScrollArea,QLineEdit)
+    QCheckBox,QDoubleSpinBox,QPlainTextEdit,QPushButton,QComboBox,QLabel,QFileDialog,QMessageBox,QScrollArea,QLineEdit,QTimeEdit)
 from desktop_core import DEFAULTS,VERSION
 from desktop_services import autostart_enabled,set_autostart,import_character,validate_character,all_items
 from settings_draft import SettingsDraft
@@ -189,12 +189,23 @@ class SettingsDialog(QDialog):
         chat=self.tab('闲聊与台词')
         self.section(chat,pet.character_name+'聊天服务','与 Codex 的只读联动独立；仅主动发送时调用。')
         button=QPushButton('配置'+pet.character_name+'聊天服务…');button.clicked.connect(pet.open_chat_service);chat.addRow(button)
+        self.section(chat,'吃饭提醒','按电脑本地时间，每个时段每天提醒一次：主人～吃饭了喵～')
+        self.check(chat,'meal_reminders','启用每日吃饭提醒')
+        for key,title in [('meal_lunch_time','午餐时间'),('meal_dinner_time','晚餐时间')]:
+            widget=QTimeEdit();widget.setDisplayFormat('HH:mm');widget.setAccessibleName(title)
+            widget.setMinimumSize(112,34)
+            self.fields[key]=widget;self.field_tabs[key]=self._building_index;self.field_titles[key]=title
+            chat.addRow(title,widget);widget.timeChanged.connect(lambda value,k=key:self.edited(k))
         self.section(chat,'自动台词','自动台词与主动闲聊相互独立；台词始终无声。')
         self.check(chat,'self_talk','启用自动台词')
         self.check(chat,'talk_quiet','Codex 工作时不自言自语')
         self.number(chat,'talk_min','台词最短间隔（秒）',5,3600,5);self.number(chat,'talk_max','台词最长间隔（秒）',5,7200,5)
         self.lines=QPlainTextEdit();self.lines.setMaximumHeight(100);self.lines.setPlaceholderText('每行一句，自动台词不会播放声音');chat.addRow('自定义台词',self.lines)
         self.field_tabs['talk_lines']=self._building_index;self.field_titles['talk_lines']='自定义台词';self.lines.textChanged.connect(lambda:self.edited('talk_lines'))
+        # Let the embedded page scroll instead of squeezing time fields/labels.
+        for index in range(chat.count()):
+            widget=chat.itemAt(index).widget()
+            if widget:widget.setMinimumHeight(max(widget.minimumHeight(),min(widget.maximumHeight(),widget.sizeHint().height())))
 
     def build_page_5(self):
         pet=self.pet
@@ -268,6 +279,7 @@ class SettingsDialog(QDialog):
             if isinstance(widget,QCheckBox):widget.setChecked(settings.get(key,DEFAULTS[key]))
             elif isinstance(widget,QComboBox):widget.setCurrentIndex(widget.findData(settings.get(key,DEFAULTS[key])))
             elif isinstance(widget,QLineEdit):widget.setText(settings.get(key,DEFAULTS[key]))
+            elif isinstance(widget,QTimeEdit):widget.setTime(QTime.fromString(settings.get(key,DEFAULTS[key]),'HH:mm'))
             else:widget.setValue(settings.get(key,DEFAULTS[key])*self.factors.get(key,1))
         if hasattr(self,'lines'):
             lines='\n'.join(settings.get('talk_lines',DEFAULTS['talk_lines']))
@@ -295,6 +307,7 @@ class SettingsDialog(QDialog):
         if key=='startup':value=self.startup.isChecked()
         elif key=='codex_startup':value=self.codex_startup.isChecked()
         elif key=='talk_lines':value=[line.strip() for line in self.lines.toPlainText().splitlines() if line.strip()]
+        elif isinstance(self.fields.get(key),QTimeEdit):value=self.fields[key].time().toString('HH:mm')
         else:
             widget=self.fields[key];value=widget.isChecked() if isinstance(widget,QCheckBox) else widget.currentData() if isinstance(widget,QComboBox) else widget.text() if isinstance(widget,QLineEdit) else widget.value()/self.factors.get(key,1)
         self.draft.set(key,value);self.status.clear();self.update_draft_state()
@@ -318,6 +331,8 @@ class SettingsDialog(QDialog):
             talking=self.fields['self_talk'].isChecked()
             for key in ('talk_quiet','talk_min','talk_max'):self.fields[key].setEnabled(talking)
             self.lines.setEnabled(talking)
+        if 'meal_reminders' in self.fields:
+            for key in ('meal_lunch_time','meal_dinner_time'):self.fields[key].setEnabled(self.fields['meal_reminders'].isChecked())
     def defaults(self):
         for key,tab in self.field_tabs.items():
             if tab==self.tabs.currentIndex() and key in DEFAULTS:self.draft.set(key,DEFAULTS[key])

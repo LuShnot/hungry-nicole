@@ -60,4 +60,22 @@ class PresenceTests(unittest.TestCase):
         with patch('desktop_services.sys.platform','darwin'),patch('psutil.process_iter',return_value=[process]):
             self.assertIsNone(codex_desktop_open())
 
+class MealNoticeTests(unittest.TestCase):
+    def test_reminder_is_passive_and_does_not_expand_compact_panel(self):
+        from meal_notice import MealNotice
+        from meal_reminders import MEAL_MESSAGE
+        pet=QWidget();pet.settings={'on_top':False};pet.bubble=CompactBubble()
+        pet.show();pet.bubble.set_mode('mini');pet.bubble.size_transition.complete();pet.bubble.show();APP.processEvents()
+        notice=MealNotice(pet);size=pet.bubble.size()
+        try:
+            with patch.object(pet.bubble.size_transition,'begin') as begin:
+                notice.present();APP.processEvents();begin.assert_not_called()
+            self.assertTrue(notice.isVisible());self.assertEqual(notice.text(),MEAL_MESSAGE)
+            self.assertTrue(notice.windowHandle().flags() & Qt.WindowType.WindowDoesNotAcceptFocus)
+            self.assertFalse(notice.windowHandle().flags() & Qt.WindowType.WindowStaysOnTopHint)
+            self.assertEqual(pet.bubble.size(),size);self.assertTrue(pet.bubble.is_island())
+            pet.hide();APP.processEvents();self.assertFalse(notice.isVisible());self.assertFalse(notice.timer.isActive())
+        finally:
+            notice.close();notice.deleteLater();pet.bubble.close();pet.bubble.deleteLater();pet.close();pet.deleteLater();APP.processEvents()
+
 if __name__=='__main__':unittest.main()
