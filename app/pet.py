@@ -36,6 +36,7 @@ class Bubble(QWidget):
         super().__init__(None, FLAGS)
         self.setAttribute(Qt.WidgetAttribute.WA_TranslucentBackground)
         self.setAttribute(Qt.WidgetAttribute.WA_ShowWithoutActivating)
+        self.setWindowFlag(Qt.WindowType.WindowDoesNotAcceptFocus,True)
         if sys.platform=='darwin':self.setAttribute(Qt.WidgetAttribute.WA_MacAlwaysShowToolWindow)
         self.layout=QVBoxLayout(self); self.layout.setContentsMargins(13,10,13,10);self.layout.setSpacing(5)
         self.setFixedWidth(256)
@@ -71,8 +72,8 @@ class Pet(QWidget):
         super().__init__(None,FLAGS)
         self.setAttribute(Qt.WidgetAttribute.WA_TranslucentBackground)
         self.setAttribute(Qt.WidgetAttribute.WA_ShowWithoutActivating)
+        self.setWindowFlag(Qt.WindowType.WindowDoesNotAcceptFocus,True)
         if sys.platform=='darwin':self.setAttribute(Qt.WidgetAttribute.WA_MacAlwaysShowToolWindow)
-        if sys.platform=='darwin':self.setWindowFlag(Qt.WindowType.WindowDoesNotAcceptFocus,True)
         self.setWindowTitle('妮可桌宠');self.setFixedSize(256,256)
         self.manifest=json.loads((getattr(self,'asset_root',ASSETS)/'素材清单.json').read_text(encoding='utf-8'))
         from character_text import name as character_name

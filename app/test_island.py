@@ -81,11 +81,13 @@ class ModeTests(unittest.TestCase):
     def setUp(self):self.b=CompactBubble();self.b.move(100,550);self.b.show();APP.processEvents()
     def tearDown(self):self.b.size_transition.complete();self.b.close();self.b.deleteLater();APP.processEvents()
     def finish(self):self.b.size_transition.complete();APP.processEvents()
-    def test_auto_idle_and_real_task_update_restore_original(self):
+    def test_auto_idle_stays_compact_until_user_expands(self):
         self.b.evaluate_mode(self.b.last_task_update+91);self.finish();self.assertTrue(self.b.is_island())
-        self.b.task_updated(dict(state='working'));self.finish();self.assertFalse(self.b.is_island())
-    def test_closed_app_collapses_without_waiting_and_quota_updates_do_not_expand(self):
-        self.b.codex_open=False;self.b.evaluate_mode();self.finish();self.assertTrue(self.b.is_island())
+        self.b.task_updated(dict(state='working'));self.finish();self.assertTrue(self.b.is_island())
+        self.b.set_mode('auto');self.finish();self.assertFalse(self.b.is_island())
+    def test_presence_blip_does_not_collapse_and_quota_does_not_expand(self):
+        self.b.codex_open=False;self.b.evaluate_mode();self.finish();self.assertFalse(self.b.is_island())
+        self.b.evaluate_mode(self.b.last_task_update+91);self.finish();self.assertTrue(self.b.is_island())
         stamp=self.b.last_task_update;self.b.quota([dict(name='一周',remaining=80)]);self.b.message('新额度')
         self.assertEqual(self.b.last_task_update,stamp);self.assertTrue(self.b.is_island())
     def test_manual_mini_is_persistable_and_not_opened_by_status_updates(self):

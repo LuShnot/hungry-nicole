@@ -1,3 +1,10 @@
+# 0.10.1 面板焦点修复
+
+- codex_desktop_open 原来只检测 Windows 的 exe，macOS 每隔五秒会误判未运行。现在识别 Codex.app / ChatGPT.app 主进程；不可读取返回未知。
+- 自动收起的面板不再因工具、思考、完成事件重新展开；运行中不按进程探测结果反复收起。空闲时仍可收起，点击胶囊或查看状态可主动展开。
+- 状态窗口创建时禁用输入焦点，编辑页通过 QWindow.setFlag 临时允许输入。不要在 PanelTransition 内调用 QWidget.setWindowFlag：它会触发 hideEvent/cancel 并破坏动画快照。
+- 52 项面板、照料和事件回归通过；测试应同时设置 LOCALAPPDATA 与 APPDATA，并使用隔离目录。
+
 # 项目交接
 
 当前版本 0.10.0，仅发布 Seedance 妮可。入口 `run.py`，内置资源 `outputs/妮可桌宠素材`，上游来源与许可保留于 NOTICE 和 docs/upstream。

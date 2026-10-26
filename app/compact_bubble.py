@@ -1,6 +1,5 @@
 """Compact, accessible quota dials; full information remains in the details view."""
 import math
-import sys
 import time
 from PySide6.QtCore import Qt,QRectF,QSize,Signal,QTimer,QVariantAnimation,QEasingCurve,QAbstractAnimation
 from PySide6.QtGui import QColor,QFont,QFontMetrics,QPainter,QPen,QTextLayout,QTextOption,QIcon,QPixmap,QPolygonF,QPalette
@@ -399,6 +398,9 @@ class CompactBubble(Bubble):
         self.show_quota=True;self.enabled=True;self.expanded=False
         self.bubble_mode='auto';self.auto_compact=False;self._minimal_normal_open=False;self._last_compact_surface=None
         self.last_task_update=time.monotonic();self.codex_open=None
+        # Live Codex updates must never change the user's card mode. Presence
+        # can briefly blip while a tool starts, so it cannot drive a resize.
+        self._task_active=False
         self._manual_grace_until=0.;self._pending_mode=None;self._pending_navigation=None
         self.quota_busy=False;self.reset_busy=False;self.pinned=True;self.wandering=True;self.movement_locked=False
         self.quota_refresh_button=None;self.reset_refresh_buttons=[];self.token_refresh_buttons=[];self.token_busy=False
@@ -483,7 +485,9 @@ class CompactBubble(Bubble):
         self._editing_flags(True);self.redraw();self.size_transition.commit()
     def _editing_flags(self,editing):
         self.setAttribute(Qt.WidgetAttribute.WA_ShowWithoutActivating,not editing)
-        if sys.platform=='darwin' and self.windowHandle():
+        # Change the native handle directly: QWidget.setWindowFlag hides the
+        # widget and cancels an in-progress panel transition.
+        if self.windowHandle():
             self.windowHandle().setFlag(Qt.WindowType.WindowDoesNotAcceptFocus,not editing)
         through=bool(getattr(self.owner_pet(),'settings',{}).get('mouse_through',False)) and not editing
         self.setAttribute(Qt.WidgetAttribute.WA_TransparentForMouseEvents,through)
@@ -780,17 +784,26 @@ class CompactBubble(Bubble):
     def task_updated(self,event):
         # Only monitor task events reset inactivity; quota/token/feed polls do not.
         self.last_task_update=time.monotonic()
+        state=event.get('state')
+        if state in ('thinking','working','responding','waiting'):
+            self._task_active=True
+        elif state in ('complete','interrupted','offline','idle') or event.get('kind')=='complete':
+            self._task_active=False
         if self.codex_open is False:self.codex_open=None
         self.evaluate_mode()
     def evaluate_mode(self,now=None):
         now=time.monotonic() if now is None else now
         if self.panel_page!='status' or self.expanded or (self.report and self.report.requested) or self.size_transition.running:return
         if self.bubble_mode=='minimal':
-            if self._minimal_normal_open and now>=self._manual_grace_until and (now-self.last_task_update>=90 or self.codex_open is False):
+            if self._minimal_normal_open and not self._task_active and now>=self._manual_grace_until and now-self.last_task_update>=90:
                 self.size_transition.begin();self._minimal_normal_open=False;self.redraw();self.size_transition.commit()
             return
         if self.bubble_mode!='auto':return
-        compact=now>=self._manual_grace_until and (now-self.last_task_update>=90 or self.codex_open is False)
+        # Automatic mode may settle into the compact card after a quiet
+        # period. It never expands in response to a status/tool event; users
+        # can expand it explicitly from the card or menu.
+        compact=not self._task_active and now>=self._manual_grace_until and now-self.last_task_update>=90
+        if self.auto_compact and not compact:return
         if compact==self.auto_compact:return
         self.size_transition.begin();self.auto_compact=compact;self.redraw();self.size_transition.commit()
     def _refresh_island_status(self):
