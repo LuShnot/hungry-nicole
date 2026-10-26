@@ -1,4 +1,5 @@
 """Fixed native canvas, blended snapshots and queued explicit navigation."""
+import sys
 from PySide6.QtCore import QObject,QVariantAnimation,QEasingCurve,QRect,QRectF,QPoint,Qt,QEvent,QTimer
 from PySide6.QtGui import QPainter,QPainterPath,QColor,QPen,QPixmap,QRegion
 from PySide6.QtWidgets import QWidget,QApplication
@@ -43,6 +44,7 @@ class NativeLanding(QWidget):
         super().__init__(bubble,flags);self.image=None;self.paints=0
         self.setAttribute(Qt.WidgetAttribute.WA_TranslucentBackground)
         self.setAttribute(Qt.WidgetAttribute.WA_ShowWithoutActivating)
+        if sys.platform=='darwin':self.setAttribute(Qt.WidgetAttribute.WA_MacAlwaysShowToolWindow)
         self.setAttribute(Qt.WidgetAttribute.WA_TransparentForMouseEvents)
         self.setFocusPolicy(Qt.FocusPolicy.NoFocus);self.hide()
     def prepare(self,rect):
@@ -51,7 +53,11 @@ class NativeLanding(QWidget):
         # Expose an empty, input-transparent surface during the animation.
         # A first show at the final resize may not be paintable synchronously.
         if self.geometry()!=rect:self.setGeometry(rect)
-        if not self.isVisible():self.show();self.raise_()
+        if not self.isVisible():
+            self.show()
+            # Cocoa raise() activates the application even for a no-focus
+            # tool window. Ownership/topmost flags already order this surface.
+            if sys.platform!='darwin':self.raise_()
         self.repaint()
     def present(self,image,rect):
         self.image=image;self.paints=0;self.prepare(rect);self.repaint()
