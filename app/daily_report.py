@@ -159,7 +159,8 @@ class DailyReport(QWidget):
         self.book_index=0;self._book_opened=False
         self._animating=False;self._frame=None;self._pending_rebuild=False;self._syncing=False;self._series_cache={}
         self.refresh_busy=False
-        self.setWindowTitle('白龙 · Token 日报');self.setAttribute(Qt.WidgetAttribute.WA_TranslucentBackground)
+        character=getattr(getattr(bubble,'owner_pet',lambda:None)(),'character_name','白龙')
+        self.setWindowTitle(character+' · Token 日报');self.setAttribute(Qt.WidgetAttribute.WA_TranslucentBackground)
         self.setAttribute(Qt.WidgetAttribute.WA_ShowWithoutActivating);self.setFocusPolicy(Qt.FocusPolicy.NoFocus)
         self.setStyleSheet('QLabel{'+FONT_CSS+'color:#393343;background:transparent;}QScrollArea{border:0;background:transparent;}QScrollBar:vertical{background:#f5f0f8;width:7px;margin:0;border-radius:3px;}QScrollBar::handle:vertical{background:#c7b7d7;min-height:18px;border-radius:3px;}QScrollBar::add-line:vertical,QScrollBar::sub-line:vertical{height:0;}QScrollBar::add-page:vertical,QScrollBar::sub-page:vertical{background:transparent;}')
         self.surface=QWidget(self);self.layout=QVBoxLayout(self.surface);self.layout.setContentsMargins(10,8,10,8);self.layout.setSpacing(5)

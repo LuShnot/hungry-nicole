@@ -30,7 +30,7 @@ def hash_file(path,cancel=lambda:False):
 class MaterialStore:
     def __init__(self,app_root,state_dir):
         self._known_availability={}
-        self.app_root=Path(app_root);self.state=Path(state_dir);self.base=self.app_root/'outputs/白龙桌宠素材'
+        self.app_root=Path(app_root);self.state=Path(state_dir);self.base=self.app_root/'outputs/妮可桌宠素材'
         self.cache=self.state/'materials';self.preference=self.state/'material-preferences.json'
         catalog_path=self.app_root/'app/material_catalog.json'
         self.catalog=json.loads(catalog_path.read_text(encoding='utf-8')) if catalog_path.is_file() else None
@@ -125,7 +125,7 @@ class MaterialStore:
         if self.available(tier):self.verify(root,tier,cancel,progress);return root
         if tier=='light':raise MaterialError('内置轻量素材缺失，请修复安装')
         spec=self.catalog['tiers']['hd'];url=spec['url']
-        expected=f"https://github.com/Wunsch2048/codex-bailong-desktop-pet/releases/download/materials-{spec['id']}/bailong-hd-{spec['id']}.zip"
+        expected=f"https://github.com/heyuyang04-ui/hungry-nicole/releases/download/materials-{spec['id']}/bailong-hd-{spec['id']}.zip"
         if url!=expected:raise MaterialError('高清素材下载地址无效')
         self.cache.mkdir(parents=True,exist_ok=True)
         # A single fresh transaction; incomplete downloads are discarded on cancel.

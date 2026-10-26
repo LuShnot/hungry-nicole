@@ -1,9 +1,0 @@
-{
-  "effectiveVersion": "0.7.0",
-  "effectiveDate": "2026-10-21",
-  "patchRange": [0, 9],
-  "carry": "第三段从9继续递增时，第二段加1，第三段归0；第二段不限制为单个数字",
-  "examples": ["0.7.8 → 0.7.9", "0.7.9 → 0.8.0", "0.9.9 → 0.10.0"],
-  "legacyVersionsPreserved": true,
-  "helper": "release_version.py"
-}

@@ -48,7 +48,7 @@ class SettingsDialog(QDialog):
         super().__init__(pet,Qt.WindowType.Widget if embedded else Qt.WindowType.Dialog);self.pet=pet;self.embedded=embedded;self.fields={};self.job=None;self.connection_job=None
         self.field_tabs={};self.field_titles={};self.factors={};self._writing_widgets=True;self.draft=None;self.path_job=None
         if embedded:self.setWindowFlags(Qt.WindowType.Widget)
-        self.setWindowTitle('白龙桌宠 · 设置');self.resize(590,680)
+        self.setWindowTitle(pet.character_name+'桌宠 · 设置');self.resize(590,680)
         outer=QVBoxLayout(self);self.tabs=QTabWidget();outer.addWidget(self.tabs,1)
         self._page_forms={};self._built_pages=set();self._building_index=0;self.refresh_buttons={}
         for title in ['面板与显示', '人物与动作', 'Codex 联动', '角色与素材', '闲聊与台词', '更新与维护']:self.tab(title)
@@ -114,7 +114,7 @@ class SettingsDialog(QDialog):
         self.check(behavior,'drag_physics','松手后惯性滑行与反弹')
         self.section(behavior,'动作与声音','自动动作静音；只在你主动点击或手动播放时使用音效。')
         self.check(behavior,'random_actions','自动随机动作')
-        self.check(behavior,'sound','主动点击人物或手动动作时播放音效')
+        self.check(behavior,'sound','主动点击人物或手动动作时播放声音（1倍速）')
         self.advanced_button=QPushButton('展开高级动作参数');self.advanced_button.setCheckable(True);behavior.addRow(self.advanced_button)
         advanced=QWidget();advanced_form=QFormLayout(advanced);advanced_form.setContentsMargins(0,0,0,0)
         for key,title,lo,hi,step in [('playback_speed','播放速度（倍）',.25,3,.25),('action_gap','动作结束后等待（秒）',0,60,1),('random_interval','自主动作间隔（秒）',3,600,1),('move_speed','自主走动速度（像素/秒）',10,300,5)]:self.number(advanced_form,key,title,lo,hi,step)
@@ -171,7 +171,7 @@ class SettingsDialog(QDialog):
         pet=self.pet
         library=self.tab('角色与素材')
         if hasattr(pet,'materials'):
-            self.section(library,'内置白龙画质','素材与程序独立；下载和切换立即执行，不属于设置草稿。')
+            self.section(library,'内置默认画质','素材与程序独立；下载和切换立即执行，不属于设置草稿。')
             from material_controller import MaterialPanel
             self.material_panel=MaterialPanel(pet.materials);library.addRow(self.material_panel)
         self.section(library,'角色资源','切换、导入和预览立即执行；预览始终静音。')
@@ -187,8 +187,8 @@ class SettingsDialog(QDialog):
     def build_page_4(self):
         pet=self.pet
         chat=self.tab('闲聊与台词')
-        self.section(chat,'白龙聊天服务','与 Codex 的只读联动独立；仅主动发送时调用。')
-        button=QPushButton('配置白龙聊天服务…');button.clicked.connect(pet.open_chat_service);chat.addRow(button)
+        self.section(chat,pet.character_name+'聊天服务','与 Codex 的只读联动独立；仅主动发送时调用。')
+        button=QPushButton('配置'+pet.character_name+'聊天服务…');button.clicked.connect(pet.open_chat_service);chat.addRow(button)
         self.section(chat,'自动台词','自动台词与主动闲聊相互独立；台词始终无声。')
         self.check(chat,'self_talk','启用自动台词')
         self.check(chat,'talk_quiet','Codex 工作时不自言自语')

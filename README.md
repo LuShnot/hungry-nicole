@@ -1,84 +1,78 @@
 # 饥饿的妮可 · Hungry Nicole
 
-一只会饿、能靠你使用 Codex 获得面包的粉发猫娘桌宠。
+一只陪你写代码、会饿、可以喂面包的粉发猫娘桌宠。
 
-本项目基于 **[Wunsch2048/codex-bailong-desktop-pet](https://github.com/Wunsch2048/codex-bailong-desktop-pet)**（本地改造基线 v0.9.9 / UI87）进行二次开发。原项目的更早来源为 [jingh12312-rgb/bailong-desktop-pet](https://github.com/jingh12312-rgb/bailong-desktop-pet)。保留原作者署名、来源说明和依赖声明；上游版本介绍归档于 [原版 README](docs/upstream/README-bailong.md)。
+基于 **[Wunsch2048/codex-bailong-desktop-pet](https://github.com/Wunsch2048/codex-bailong-desktop-pet)** 二次开发，保留上游 Codex 状态联动、任务完成提醒、Token 图表、托盘和聊天面板。在此基础上新增妮可角色、饱腹度、Token 面包奖励和互动声音。
 
-> 当前为发布准备版。妮可首轮完整打包已完成，但帧序与视觉验收未通过，尚未发布经过完整验收的安装包。静态图数量与白龙一致，不代表动作已经达到相同流畅度。
+![妮可 Seedance 动作预览](docs/media/nicole-seedance.png)
 
-## 相比白龙项目新增了什么
+## 这一版有什么
 
-| 新增内容 | 说明 |
+| 功能 | 行为 |
 | --- | --- |
-| 妮可角色 | Q 版粉色长发、猫耳、蓝眼睛与蓝白裙装；角色基准图、动作提示词与素材生成工具 |
-| 饱腹度 | 初始 100%，每满 5 分钟下降 1%，最低 0%；程序关闭和休眠期间也计时 |
-| 饥饿提醒 | 降至 30% 时显示「主人～ 我好饿～」；同一次饥饿只提醒一次，恢复至 30% 以上后重新计次 |
-| Token 换食物 | 从首次启用起，每新增 1,000,000 个本机 Codex token 获得 1 个面包，余数保留 |
-| 食物与喂食 | 角色右键或托盘右键 → **食物**；显示饱腹度、库存、下一份奖励进度，点击面包恢复 30 个百分点，上限 100% |
-| 持久保存与去重 | 使用 SQLite 事务保存饱腹度、库存及奖励进度，重复刷新、重启不会重复发奖；满饱腹时不消耗面包 |
-| Seedream 素材工具 | 参考图生图、批量动作/阶段/逐帧请求、仅打印计划、指定起始帧；默认 `watermark=false` |
-| 动画打包工具 | 帧序号排序与缺帧检查、720×720 RGBA、24fps 时钟、无损 WebP、逐动作进度、断点复用与原子写入 |
+| 妮可内置角色 | 默认启动就是妮可；全部动画来自 Seedance 连续视频，不使用独立生图拼接 |
+| 连贯动画 | 720×720 透明 WebP，按源视频时间轴采样为 24fps，保持 1 倍速；包含 27 段素材、3,987 帧 |
+| 互动声音 | 包含 19 段 WAV；主动互动且开启声音、1 倍速时播放，自动动作保持安静 |
+| 饱腹度 | 初始 100%，每满 5 分钟减少 1%，关闭程序和休眠期间也计时 |
+| 饥饿提醒 | 降至 30% 显示「主人～ 我好饿～」，同一轮饥饿不重复提醒 |
+| Token 换面包 | 功能启用后，每累计 1,000,000 个可读取的本机 Codex token 获得一个面包，余数保留 |
+| 固定喂食动作 | 右键 → 食物 → 面包；成功扣除面包后恢复 30 个百分点，并仅播放固定的「偷吃面包」动作 |
+| 本地保存 | 饱腹度、库存和奖励进度保存在本机 SQLite；重启、重复刷新不重复发奖 |
+| macOS 置顶修复 | 切换到 Codex 后保持显示；状态刷新不抢输入焦点，主动打开聊天/设置仍可输入 |
 
-继承上游的 Codex 状态、任务完成提醒、本机 Token 图表、角色交互、托盘和设置功能。上游的 Windows 自启、凭据加密、安装升级等能力不代表已经移植并验证于 macOS。
+满饱或没有面包时不消耗库存、不播放喂食动画。「偷吃面包」不会出现在随机互动或手动动作菜单中。另一个 `feed` 视频仅保留为备用制作素材，不参与运行时播放。
 
-## 食物如何计算
+## 下载与启动
 
-读取现有本机 Codex 日志中的真实 token 记录，不需要额外 API Key，不会调用模型来发放面包。只累计功能启用时间之后成功解析的消耗；旧日志补读不补发历史面包，缓存输入不重复相加。统计仅覆盖本机可读取的记录，不等于计费金额或其他设备的全部用量。
-
-部分历史日志不可读时，已成功解析的新记录仍可累计。没有有效用量时显示等待状态。后台约每 30 秒刷新；饱腹度每 10 秒检查一次。饥饿提醒不会强行打开隐藏的气泡，也不会覆盖正在优先显示的任务完成消息。
-
-完整规则、数据目录和本机启动命令见 [饱腹度与食物](docs/PET_CARE.md)。
-
-## 素材生产与打包
-
-提示词位于 `tools/nicole_prompts.json`，生成脚本位于 `tools/nicole_seedream.py`。API Key 只从 `ARK_API_KEY` 环境变量读取。原始参考图、生成原图、API 回执和本地运行数据不纳入源码发布。
-
-**仅生成更多独立图片不能保证动画连贯。** 当前逐帧模式在身份、道具、表情的一致性方面仍须视觉验收。五张关键姿势的旧后端是短交叉淡化，不是光流插帧；正式流畅动画需要有时间连续性的源素材。
-
-在项目根目录先检查完整帧：
+当前提供 **源码 + 已验证素材包**，推荐 Python 3.12。已在 macOS Apple Silicon 进行源码启动与原生窗口测试；本次没有发布经过验证的 Windows EXE 或 macOS `.app` 安装器。
 
 ```bash
-python tools/assemble_nicole_animation.py \
-  --input-dir build/seedream/nicole-full-frames \
-  --check-only
+git clone https://github.com/heyuyang04-ui/hungry-nicole.git
+cd hungry-nicole
+python3 -m venv .venv
+source .venv/bin/activate
+python -m pip install -r requirements.txt
+python tools/install_nicole_assets.py
+python run.py
 ```
 
-打包到新目录，避免与旧打包进程同时写同一批文件：
+Windows PowerShell 用 `py -3.12 -m venv .venv` 创建环境，之后使用 `.\.venv\Scripts\python.exe` 代替上述 `python`，无需激活环境。Windows 功能兼容性仍需实机验证。
+
+素材下载自 [本项目 Release](https://github.com/heyuyang04-ui/hungry-nicole/releases/tag/v0.10.0-seedance)，安装工具先检查 ZIP 和每个文件的 SHA-256，再替换素材。也可手动下载后运行：
 
 ```bash
-python tools/assemble_nicole_animation.py \
-  --input-dir build/seedream/nicole-full-frames \
-  --output-dir outputs/妮可桌宠素材候选 \
-  --method 1
+python tools/install_nicole_assets.py --archive /path/to/nicole-seedance-assets-v0.10.0.zip
 ```
 
-默认无损编码等级为 1；`--method 6` 压缩更慢、文件通常更小，二者均为无损编码。每个动作成功后保存校验回执，同样命令重跑会复用输入与输出校验均匹配的动作。缺帧、重复帧会在编码前报错，不会将少量图片拉长冒充完整帧序列。
+已有完整素材不必重复安装。退出后重新运行 `python run.py` 即可；`python run.py --quit` 可关闭当前妮可进程。
 
-完整清单为 **25 个动作、2,875 张原始帧**；帧数和时长对齐白龙的主动作清单。工作动作的无缝循环需要单独设计和验收，不能从随机几帧伪造循环接缝。
+首次启动默认关闭自主走动、随机动作和自动更新；需要时可在设置中打开。内置更新地址已隔离为本项目，不会下载白龙仓库的程序覆盖妮可。
 
-生图用法见 [妮可素材说明](docs/NICOLE.md)。
+## 使用说明
 
-## 运行与平台状态
+- **食物**：右键妮可或托盘 → 食物，查看饱腹度、面包和奖励进度。只累计启用后的有效用量，不补发历史奖励；无需 API Key。
+- **声音**：设置 → 人物与动作，开启主动互动声音并使用 1 倍速。切换动作、隐藏、退出或关闭声音会停止播放；无音轨的动作保持静音。
+- **聊天**：从妮可面板进入聊天，可自行配置服务。运行桌宠、发放面包不需要生视频 API Key。
+- **数据隔离**：`run.py` 为本项目使用独立数据目录，保留内部兼容目录名 `BailongEnhanced`；不读取白龙安装目录的配置。macOS 位于 `~/Library/Application Support/HungryNicole/`，Windows 位于 `%LOCALAPPDATA%/HungryNicole/`。可用 `NICOLE_STATE_HOME` 指定其他目录。
 
-- 已进行 macOS 源码运行及食物菜单原生点击验证；不宣称完成整个项目的 macOS 移植。
-- 目前沿用上游 PySide6/Pillow 应用结构。源码启动仍依赖白龙基础资源及已导入的妮可角色包；只下载源码尚不能保证首次直接显示妮可。
-- 当前已有用户可继续使用原部署方式；本地妮可启动方式见 [使用说明](docs/PET_CARE.md)。
-- 发布前仍需完成首次安装、默认妮可选择、动画验收和更新来源隔离。旧白龙 `.app` / Windows 安装包不包含本项目新增功能。
+更多规则见 [饱腹度与食物](docs/PET_CARE.md)。
 
-源码依赖、Windows 构建和上游架构见 [开发文档](docs/DEVELOPMENT.md)。大型动画和安装包拟通过 GitHub Releases 分发，不写入 Git 历史。
+## 素材创作
 
-## 验证与发布状态
+仓库仅保留 Seedance 路线：同一透明 base → 固定首尾绿幕图 → 连续视频 → 按时间抽帧 → 抠透明 → WebP 与 WAV。旧的 Seedream 独立逐帧生成和拼接脚本不再包含于当前版本。
 
-- 饱腹度、库存、token 奖励及相关 UI：40 项相关测试通过；macOS 原生菜单点击验证通过。
-- 打包器新增回归：覆盖 API 文件名排序、重复/缺失帧、24fps 时间分配、无损像素与原子写入。
-- 完整动画：待完成逐动作播放、透明边缘、首尾衔接和工作循环验收。**发布条件未满足前不上传正式版本。**
+- [完整动作 Prompt](docs/NICOLE_SEEDANCE_PROMPTS.md)
+- [Seedance 生成、续查与后处理命令](docs/NICOLE_SEEDANCE.md)
+- [测试与版本状态](docs/NICOLE_RELEASE_STATUS.md)
 
-本次更新汇总见 [妮可更新记录](docs/NICOLE_CHANGELOG.md)，发布准备与阻塞项见 [发布状态](docs/NICOLE_RELEASE_STATUS.md)。
+生成视频会消耗火山方舟额度，只有显式 `--execute` 才提交任务；密钥只读取 `ARK_API_KEY`。参考图、原视频、API 回执、数据库、日志和聊天内容不随源码发布。
+
+工作动作保留完整视频片段，当前不宣称实现无缝中段循环。生成音色可能随动作不同；用户已确认这一批动作播放效果可用。
 
 ## 来源与许可
 
-感谢 Wunsch2048 与更早上游作者提供桌宠基础。妮可角色和饱腹度/食物系统是在其基础上的新增内容，不将上游功能标为原创。
+感谢 [Wunsch2048/codex-bailong-desktop-pet](https://github.com/Wunsch2048/codex-bailong-desktop-pet) 和更早的 [jingh12312-rgb/bailong-desktop-pet](https://github.com/jingh12312-rgb/bailong-desktop-pet)。本地改造基线为 v0.9.9 / UI87；原作者功能不标为本项目原创。
 
-保留 [NOTICE](NOTICE.md)、上游素材声明和 `app/licenses`。上游未提供覆盖整个项目的统一开源许可证，本项目不擅自标为 MIT，也不额外授予角色、参考图或第三方素材的商业使用权。
+保留 [NOTICE](NOTICE.md)、[上游资料](docs/upstream/README-bailong.md) 和 `app/licenses`。上游没有覆盖整个项目的统一开源许可证，本项目不擅自标为 MIT，也不额外授予角色或第三方素材的商业使用权。原 NOTICE 中的授权确认属于上游发布者声明，不代表对新增素材的额外授权。
 
 本项目是独立第三方桌面程序，与 OpenAI、Codex 官方无隶属关系。

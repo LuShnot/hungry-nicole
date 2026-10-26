@@ -3,7 +3,7 @@ from dataclasses import dataclass,replace
 from pathlib import Path,PurePosixPath
 import hashlib,json,os,re,urllib.request,urllib.error,urllib.parse,zipfile,time
 
-REPOSITORY='Wunsch2048/codex-bailong-desktop-pet'
+REPOSITORY='heyuyang04-ui/hungry-nicole'
 API='https://api.github.com/repos/'+REPOSITORY+'/releases/latest'
 MAX_PACKAGE=2_147_483_647
 class UpdateError(Exception):pass

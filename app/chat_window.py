@@ -41,17 +41,19 @@ class SessionStore:
         self.sessions.insert(0,session);self.save();return session
 
 from chat_transport import ChatStream
+from character_text import name as character_name, chat_prompt
 
 class ProviderDialog(QDialog):
-    def __init__(self,root,parent=None,embedded=False):
+    def __init__(self,root,parent=None,embedded=False,character='白龙'):
         super().__init__(parent,Qt.WindowType.Widget if embedded else Qt.WindowType.Dialog);self.root=Path(root);self.path=self.root/'chat.json'
+        self.character=character
         if embedded:
             self.setWindowFlags(Qt.WindowType.Widget);self.setObjectName('provider_settings');self.setStyleSheet('QWidget#provider_settings{background:#f5f2f7;}')
         self.load_error=''
         try:self.config=load_chat_config(self.root)
         except OSError as error:self.config=copy.deepcopy(CHAT_DEFAULT);self.load_error=str(error)
         self.drafts={};self.current=None;self.mutation_buttons=[]
-        self.setWindowTitle('白龙 · 模型服务');self.resize(530,550);layout=QVBoxLayout(self)
+        self.setWindowTitle(self.character+' · 模型服务');self.resize(530,550);layout=QVBoxLayout(self)
         row=QHBoxLayout();self.select=QComboBox();row.addWidget(self.select,1)
         for title,slot in [('添加',self.add),('删除',self.remove)]:
             b=QPushButton(title);b.clicked.connect(slot);row.addWidget(b)
@@ -71,7 +73,10 @@ class ProviderDialog(QDialog):
         self.fields['base_url'].textChanged.connect(self.update_endpoint)
         self.fields['key'].textChanged.connect(self.update_key_status)
         self.timeout=QSpinBox();self.timeout.setRange(5,600);form.addRow('超时（秒）',self.timeout)
-        self.prompt=QPlainTextEdit();self.prompt.setPlainText(self.config.get('system_prompt',CHAT_DEFAULT['system_prompt']));form.addRow('角色系统提示词',self.prompt)
+        configured_prompt=self.config.get('system_prompt',CHAT_DEFAULT['system_prompt'])
+        if self.character!='白龙' and configured_prompt==CHAT_DEFAULT['system_prompt']:
+            configured_prompt=f'你是{self.character}，是陪伴用户工作的桌面伙伴。用自然、简洁的中文回应。'
+        self.prompt=QPlainTextEdit();self.prompt.setPlainText(configured_prompt);form.addRow('角色系统提示词',self.prompt)
         self.count=QSpinBox();self.count.setRange(2,200);self.count.setValue(self.config.get('history_messages',40));form.addRow('历史消息上限',self.count)
         self.chars=QSpinBox();self.chars.setRange(1000,200000);self.chars.setSingleStep(1000);self.chars.setValue(self.config.get('history_chars',24000));form.addRow('历史字符上限',self.chars)
         note=QLabel('仅支持 Chat Completions；不支持 Responses 或 Anthropic 原生接口。\n仅主动发送时请求服务，Codex 会话不会自动发送。\n密钥使用当前 Windows 用户的 DPAPI 加密保存；本地免密服务可留空。');note.setWordWrap(True);note.setStyleSheet('font-size:11px;color:#706879;');layout.addWidget(note)
@@ -182,10 +187,11 @@ class ChatWindow(QWidget):
     def __init__(self,pet,root,embedded=False):
         super().__init__(pet,Qt.WindowType.Widget if embedded else Qt.WindowType.Window);self.pet=pet;self.embedded=embedded;self.root=Path(root);self.character=str(pet.settings.get('character','builtin'))
         self.store=SessionStore(root,self.character);self.session=self.store.sessions[0] if self.store.sessions else self.store.new()
+        self.display_name=character_name(pet)
         self.stream=None;self.partial='';self.busy=False;self.provider_dialog=None
         self._stream_pending=[];self._rendered_text='';self._rendered_session=None
         self.stream_timer=QTimer(self);self.stream_timer.setSingleShot(True);self.stream_timer.setInterval(33);self.stream_timer.timeout.connect(self.flush_stream)
-        self.setWindowTitle('和白龙聊天');self.resize(580,650)
+        self.setWindowTitle('和'+self.display_name+'聊天');self.resize(580,650)
         outer=QVBoxLayout(self);outer.setContentsMargins(0,0,0,0);self.pages=QStackedWidget();outer.addWidget(self.pages)
         self.chat_body=QWidget();self.pages.addWidget(self.chat_body);layout=QVBoxLayout(self.chat_body)
         row=QHBoxLayout();self.sessions=QComboBox();row.addWidget(self.sessions,1)
@@ -198,7 +204,7 @@ class ChatWindow(QWidget):
         layout.addLayout(row);self.sessions.currentIndexChanged.connect(self.switch)
         self.confirmation=InlineConfirmation();layout.addWidget(self.confirmation)
         self.transcript=QPlainTextEdit();self.transcript.setReadOnly(True);layout.addWidget(self.transcript,1)
-        self.status=QLabel('这里是与白龙的对话；Codex 进度可切换到状态页查看。');self.status.setTextFormat(Qt.TextFormat.PlainText);self.status.setWordWrap(True);layout.addWidget(self.status)
+        self.status=QLabel('这里是与'+self.display_name+'的对话；Codex 进度可切换到状态页查看。');self.status.setTextFormat(Qt.TextFormat.PlainText);self.status.setWordWrap(True);layout.addWidget(self.status)
         self.input=ChatInput();self.input.setMaximumHeight(110);self.input.setPlaceholderText('Enter 发送，Shift+Enter 换行');self.input.send.connect(self.send);layout.addWidget(self.input)
         row=QHBoxLayout();self.send_button=QPushButton('发送');self.send_button.setProperty('role','primary');self.send_button.clicked.connect(self.send);row.addWidget(self.send_button)
         self.stop_button=QPushButton('停止');self.stop_button.clicked.connect(self.stop);row.addWidget(self.stop_button)
@@ -235,8 +241,8 @@ class ChatWindow(QWidget):
             bar.setValue(bar.maximum() if at_end else scroll)
     def render(self):
         self.stream_timer.stop();self._stream_pending.clear()
-        text='\n\n'.join(('我' if m['role']=='user' else '白龙')+'：\n'+m['content'] for m in self.session['messages'])
-        if self.busy:text+='\n\n白龙：\n'+self.partial
+        text='\n\n'.join(('我' if m['role']=='user' else self.display_name)+'：\n'+m['content'] for m in self.session['messages'])
+        if self.busy:text+='\n\n'+self.display_name+'：\n'+self.partial
         self._replace_text(text)
         self.send_button.setEnabled(not self.busy);self.retry_button.setEnabled(not self.busy);self.stop_button.setEnabled(self.busy)
     def flush_stream(self):
@@ -274,13 +280,13 @@ class ChatWindow(QWidget):
         self.confirmation.cancel()
         if self.embedded:
             if not self.provider_dialog:
-                self.provider_dialog=ProviderDialog(self.root,self,embedded=True)
+                self.provider_dialog=ProviderDialog(self.root,self,embedded=True,character=self.display_name)
                 self.provider_page=QScrollArea();self.provider_page.setWidgetResizable(True);self.provider_page.setWidget(self.provider_dialog)
                 self.pages.addWidget(self.provider_page)
                 self.provider_dialog.finished.connect(self.provider_finished)
             self.pages.setCurrentWidget(self.provider_page);self.provider_dialog.show();return
         if self.provider_dialog and self.provider_dialog.isVisible():self.provider_dialog.raise_();return
-        self.provider_dialog=ProviderDialog(self.root,self);self.provider_dialog.finished.connect(self.provider_finished);self.provider_dialog.show()
+        self.provider_dialog=ProviderDialog(self.root,self,character=self.display_name);self.provider_dialog.finished.connect(self.provider_finished);self.provider_dialog.show()
     def provider_finished(self,result):
         if self.embedded:self.pages.setCurrentWidget(self.chat_body)
         if result==QDialog.DialogCode.Accepted:self.status.setText('聊天配置已保存；尚未验证连通，发送消息时才会请求服务。')
@@ -307,7 +313,8 @@ class ChatWindow(QWidget):
         messages=copy.deepcopy(self.session['messages'])
         if retry and messages and messages[-1]['role']=='assistant':messages.pop()
         if not retry:messages.append(dict(role='user',content=text))
-        prompt=self.pet.manifest.get('systemPrompt') or config.get('system_prompt',CHAT_DEFAULT['system_prompt'])
+        configured_prompt=config.get('system_prompt')
+        prompt=self.pet.manifest.get('systemPrompt') or (chat_prompt(self.pet) if configured_prompt in (None,'',CHAT_DEFAULT['system_prompt']) else configured_prompt)
         payload=[dict(role='system',content=prompt)]+trim_messages(messages,config.get('history_messages',40),config.get('history_chars',24000))
         stream=ChatStream(self);self.stream=stream;self.partial='';self.busy=True
         stream.delta.connect(lambda value:self.on_delta(stream,value));stream.done.connect(lambda value:self.on_done(stream,value))
@@ -321,7 +328,7 @@ class ChatWindow(QWidget):
             self.stream=None;self.busy=False;stream.cancel();stream.deleteLater()
             self.status.setText('聊天记录保存失败；输入已保留，请检查磁盘空间和目录权限。');self.render();return
         self.input.clear()
-        self.status.setText('白龙正在回复…');self.reload()
+        self.status.setText(self.display_name+'正在回复…');self.reload()
     def on_delta(self,stream,value):
         if stream is self.stream and self.busy:
             self.partial+=value;self._stream_pending.append(value)

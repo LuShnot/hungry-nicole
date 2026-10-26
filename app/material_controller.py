@@ -63,7 +63,7 @@ class MaterialPanel(QWidget):
         self.action=QPushButton();row.addWidget(self.action);self.cancel_button=QPushButton('取消');row.addWidget(self.cancel_button);layout.addLayout(row)
         self.progress=QProgressBar();self.progress.setRange(0,1000);layout.addWidget(self.progress)
         self.message=QLabel();self.message.setWordWrap(True);layout.addWidget(self.message)
-        note=QLabel('仅用于内置白龙。高清按需下载并缓存，后续升级可复用；切换不改变人物大小。取消下载不会更改当前画质。');note.setWordWrap(True);note.setStyleSheet('font-size:11px;font-weight:500;color:#706879;');layout.addWidget(note)
+        note=QLabel('仅用于内置默认素材。高清按需下载并缓存，后续升级可复用；切换不改变人物大小。取消下载不会更改当前画质。');note.setWordWrap(True);note.setStyleSheet('font-size:11px;font-weight:500;color:#706879;');layout.addWidget(note)
         self.choice.setCurrentIndex(max(0,self.choice.findData(controller.store.current)))
         self.choice.currentIndexChanged.connect(lambda:self.refresh(controller.snapshot()));self.action.clicked.connect(lambda:controller.request(self.choice.currentData()));self.cancel_button.clicked.connect(controller.cancel)
         controller.changed.connect(self.refresh);self.refresh(controller.snapshot())

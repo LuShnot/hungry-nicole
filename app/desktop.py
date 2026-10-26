@@ -46,6 +46,7 @@ class DesktopPet(EnhancedPet):
         self.connection_health=CapabilityHealth(data_home(),previous)
         from material_store import MaterialStore
         self.material_store=MaterialStore(ROOT,STATE_DIR);self._pending_material=None
+        self.action_audio=None
         self.player=None;self.gate=ActionGate();self.asset_root=self.material_store.root
         self.animation_wakeups=0;self.movement_wakeups=0
         self.sustained=SustainedPlayback();self.continuous=ContinuousWork();self._resume_idle=False
@@ -98,7 +99,7 @@ class DesktopPet(EnhancedPet):
         if chosen!='builtin':
             try:self.switch_character(chosen)
             except (OSError,ValueError,KeyError):
-                self.settings['character']='builtin';self.say('角色包不可用，已恢复白龙默认素材。',6000)
+                self.settings['character']='builtin';self.say('角色包不可用，已恢复妮可默认素材。',6000)
         self.restore_saved_position()
         if self.settings['wander_home'] is None:self.remember_wander_home()
         self.next_chain=time.monotonic()+self.settings['random_interval']
@@ -110,7 +111,7 @@ class DesktopPet(EnhancedPet):
         self.codexPresence.connect(self.observe_codex_presence)
         self.codex_timer=QTimer(self);self.codex_timer.setInterval(2000);self.codex_timer.timeout.connect(self.poll_codex_presence)
         if monitor:self.codex_timer.start()
-        self.tray.setToolTip('白龙桌宠 '+VERSION+' · 点击恢复 / 右键设置')
+        self.tray.setToolTip(self.character_name+'桌宠 '+VERSION+' · 点击恢复 / 右键设置')
         self.tray.activated.disconnect()
         self.tray.activated.connect(lambda reason:self.recover() if reason in (QSystemTrayIcon.ActivationReason.Trigger,QSystemTrayIcon.ActivationReason.DoubleClick) else None)
         self.tray_menu=QMenu();self.tray_menu.aboutToShow.connect(self.populate_tray);self.tray.setContextMenu(self.tray_menu)
@@ -139,7 +140,13 @@ class DesktopPet(EnhancedPet):
             return
         if self.care_state['notify']:self.say(HUNGRY_MESSAGE,10000)
         if feed:
-            if self.care_state['fed']:text=f"谢谢主人～ 饱腹度 {self.care_state['fullness']}%"
+            if self.care_state['fed']:
+                text=f"谢谢主人～ 饱腹度 {self.care_state['fullness']}%"
+                item=self.manifest.get('feedAnimation') or next((v for v in self.variants if v.get('id')=='17'),None)
+                if item:
+                    self._feeding_bread=True
+                    try:self.choose(item,manual=True)
+                    finally:self._feeding_bread=False
             elif self.care_state['fullness']==100:text='已经吃饱啦～ 面包留着下次吃。'
             else:text='暂时没有面包，每累计 100 万 token 可以获得一个。'
             self.say(text,6000)
@@ -184,10 +191,15 @@ class DesktopPet(EnhancedPet):
         return checked(self.asset_root,name)
 
     def play(self,item,mode):
+        if item.get('id') in ('17','feed') and not getattr(self,'_feeding_bread',False):return False
         if self._visibility_ready and (self._desktop_hidden or not self.settings.get('character_visible',True)):return False
         if self._interactive_action and mode=='variant':mode='click'
         if not self.gate.request(mode,item,force=self._interactive_action or self._manual_action):return False
         self.sustained.cancel()
+        if self.action_audio:self.action_audio.stop()
+        if item.get('audioFile') and (self._interactive_action or self._manual_action) and self.action_audio is None:
+            from action_audio import ActionAudio
+            self.action_audio=ActionAudio(self)
         if self.player is None:self.player=StreamPlayer()
         try:
             frame=self.player.start(self.asset_path(item),self.frame_size,item.get('durationMs',4000)/1000,cache_loop=mode=='idle')
@@ -200,6 +212,8 @@ class DesktopPet(EnhancedPet):
             raise
         self.frames=[frame];self._hit_image=frame.toImage();self.current=item;self.mode=mode;self.index=0
         self.started=time.monotonic();self.transition=None;self.update_frame()
+        if item.get('audioFile') and (self._interactive_action or self._manual_action):
+            self.action_audio.start(self.asset_root,item,manual=True,enabled=self.settings.get('sound',True),speed=self.settings.get('playback_speed',1))
         self.schedule_animation()
         return True
 
@@ -243,6 +257,8 @@ class DesktopPet(EnhancedPet):
             hard=bool(self._pending_material or not same_turn)
             self.sustained.request(bool(not hard and desired.action_id==owner.action_id),hard=hard)
         frame,ended=self.player.advance(self.frame_size,getattr(self,'settings',{}).get('playback_speed',1)*self.sustained.speed_factor(self.player))
+        if self.action_audio:
+            self.action_audio.sync(self.player.playhead,enabled=self.settings.get('sound',True),speed=self.settings.get('playback_speed',1),ended=ended)
         if frame is not None:
             self.frames=[frame];self.index=0;self._hit_image=frame.toImage();self.update_frame()
         if self.press_feedback and time.monotonic()-self.press_feedback<.5:self.update()
@@ -317,7 +333,8 @@ class DesktopPet(EnhancedPet):
         if selected=='turn':
             self.walk_direction*=-1;self.settings['facing']=self.walk_direction
             return self.play(random.choice(self.manifest.get('turnAnimations') or self.idles),'turn')
-        if selected=='variant' and self.variants:self.choose(random.choice(self.variants));return True
+        variants=[v for v in self.variants if v.get('id') not in ('17','feed')]
+        if selected=='variant' and variants:self.choose(random.choice(variants));return True
         return False
 
     def frame_transform(self,canvas):
@@ -362,6 +379,7 @@ class DesktopPet(EnhancedPet):
         return 0<=fx<image.width() and 0<=fy<image.height() and image.pixelColor(fx,fy).alpha()>=12
 
     def choose(self,item,interactive=False,manual=False):
+        if item.get('id') in ('17','feed') and not getattr(self,'_feeding_bread',False):return
         if self._visibility_ready and (self._desktop_hidden or not self.settings.get('character_visible',True)):return
         if not interactive and not manual and self.gate.state not in ('idle','turn','walk','variant'):return
         if interactive and self.gate.state=='task':return
@@ -371,9 +389,14 @@ class DesktopPet(EnhancedPet):
         try:super().choose(item,interactive)
         finally:self._interactive_action=False;self._manual_action=False;self._priority=old
 
+    def play_click_sound(self):
+        if any(item.get('audioFile') for item in all_items(self.manifest)):return
+        super().play_click_sound()
+
     def single_click(self):
         self.last_click=None;self.press_feedback=time.monotonic()
         pool=self.manifest.get('clickAnimations') or [v for v in self.variants if v['id'] in ('01','08','09','10','11','17','20','26') ] or self.variants or self.idles
+        pool=[v for v in pool if v.get('id') not in ('17','feed')] or self.idles
         self.choose(random.choice(pool),interactive=True)
 
     def say(self,text,ms=4000):
@@ -570,6 +593,7 @@ class DesktopPet(EnhancedPet):
         self.reactions.configure(self.settings['status_action_interval'],time.monotonic())
         if hasattr(self,'updates'):self.updates.configure(self.settings['update_checks'])
         for attr in ('wandering','random_actions','commentary','sound'):setattr(self,attr,self.settings[attr])
+        if self.action_audio and (not self.sound or self.settings['playback_speed']!=1):self.action_audio.stop()
         self.bubble.enabled=self.settings['bubble'];self.bubble.show_quota=self.settings['quota_visible']
         self.bubble.bubble_mode=self.settings['bubble_mode']
         if 'bubble_mode' in values:self.bubble._minimal_normal_open=False
@@ -625,6 +649,7 @@ class DesktopPet(EnhancedPet):
                 if self.sustained.active:self.sustained.prewarm(self.player,self.frame_size)
 
     def pause_hidden_animation(self):
+        if not self.isVisible() and self.action_audio:self.action_audio.stop()
         if not self.isVisible() and self.player:
             self.sustained.cancel();self.player.close();self.continuous.clear();self.gate.state='idle';self._resume_idle=True
 
@@ -710,6 +735,9 @@ class DesktopPet(EnhancedPet):
         if self.enhanced_ready and self.bubble.panel_page!='status':self.bubble._editor_positioned=True
         if self.enhanced_ready and not self.card_surface_visible():self.bubble.hide()
     def can_raise_bubble(self):
+        # macOS panels stay visible via WA_MacAlwaysShowToolWindow. Repeated
+        # raise calls during status updates can reactivate the app while typing.
+        if sys.platform=='darwin':return False
         if self._video_yielded or self.dragging or self.throwing or self.walking:return False
         # Owned panels stay above the pet. Periodic bubble updates must not
         # reorder its sibling windows over an open settings/chat panel.
@@ -733,6 +761,7 @@ class DesktopPet(EnhancedPet):
             # First activation can synchronously polish the native editor and
             # take a full frame. Do it before the snapshot animation starts so
             # the visible morph has an uninterrupted clock.
+            self.bubble._editing_flags(True)
             self.bubble.raise_();self.bubble.activateWindow()
             if self.bubble.windowHandle():self.bubble.windowHandle().requestActivate()
             QApplication.setActiveWindow(self.bubble)
@@ -755,11 +784,12 @@ class DesktopPet(EnhancedPet):
         self.refresh_quota()
 
     def action_groups(self):
-        return {'待机':self.idles,'转向':self.manifest.get('turnAnimations',[]),'移动':self.manifest.get('moveAnimations',[]),
+        groups={'待机':self.idles,'转向':self.manifest.get('turnAnimations',[]),'移动':self.manifest.get('moveAnimations',[]),
             '点击回应':self.manifest.get('clickAnimations') or [v for v in self.variants if v['id'] in ('01','08','09','10','11')],
             '互动动作':self.variants,'工作动作':[v for v in self.manifest.get('workAnimations',[]) if v], '额度回应（不刷新数据）':[self.manifest['quotaAnimation']] if self.manifest.get('quotaAnimation') else [],
             '拖拽':[self.manifest['dragAnimation']] if self.manifest.get('dragAnimation') else [],
             '落地':[self.manifest['landingAnimation']] if self.manifest.get('landingAnimation') else []}
+        return {name:[v for v in items if v.get('id') not in ('17','feed')] for name,items in groups.items()}
     def populate_tray(self):self.build_menu(self.tray_menu,tray=True)
     def execute_command(self,command,checked=False):
         if command.startswith('mode_'):self.bubble.set_mode(command[5:]);return
@@ -771,7 +801,7 @@ class DesktopPet(EnhancedPet):
             'walk':lambda:self.set_option('wandering',not self.settings['wandering']),'quit':self.close}
         commands[command]()
     def menu_command(self,menu,command):
-        labels={'status':'查看状态','settings':'桌宠设置…','chat':'和白龙聊天…',
+        labels={'status':'查看状态','settings':'桌宠设置…','chat':'和'+self.character_name+'聊天…',
             'visible':'显示桌面组件' if self._desktop_hidden else '隐藏全部组件','recover':'找回组件并关闭穿透','character':'显示人物',
             'mode_auto':'自动 / 正常卡片','mode_mini':'胶囊模式','mode_minimal':'极简：额度百分比',
             'position':'回到当前屏幕右下角','pin':'始终置顶','lock':'锁定人物位置（含拖动）',
@@ -862,7 +892,7 @@ class DesktopPet(EnhancedPet):
         except OSError as error:self.say(str(error),6000)
     def open_data(self):QDesktopServices.openUrl(QUrl.fromLocalFile(str(STATE_DIR)))
     def app_update_state(self,state):
-        text='白龙桌宠 '+VERSION+(' · 有更新 '+state['latest'] if state['phase']=='available' else ' · 点击恢复 / 右键设置')
+        text=self.character_name+'桌宠 '+VERSION+(' · 有更新 '+state['latest'] if state['phase']=='available' else ' · 点击恢复 / 右键设置')
         if self.tray.toolTip()!=text:self.tray.setToolTip(text)
     def install_app_update(self,path):
         import subprocess
@@ -883,7 +913,7 @@ class DesktopPet(EnhancedPet):
             self.updates.installing()
         except (OSError,ValueError,UpdateError) as error:self.updates.install_failed(str(error))
     def character_choices(self):
-        choices=[('builtin','白龙娘 · 内置')]
+        choices=[('builtin','妮可 · 内置')]
         for folder in sorted(self.character_dir.iterdir()):
             if not folder.is_dir() or folder.name.startswith('import-'):continue
             try:
@@ -910,6 +940,11 @@ class DesktopPet(EnhancedPet):
         self.sustained.cancel();self.continuous.clear()
         try:
             self.asset_root=root;self.manifest=m;self.idles=[m['idle']]+m.get('additionalIdleAnimations',[]);self.variants=m.get('variants',[])
+            from character_text import name as character_name
+            self.character_name=character_name(self)
+            self.bubble.character_name=self.character_name
+            self.bubble.heading=self.character_name+' · Codex 桌面伙伴'
+            self.bubble.setWindowTitle(self.character_name+'增强版 · 状态气泡')
             self.reactions.set_actions(item['id'] for item in all_items(m))
             self.idle()
         except Exception:
@@ -923,7 +958,7 @@ class DesktopPet(EnhancedPet):
 
     def queue_material(self,tier,root):
         if self.settings.get('character','builtin')!='builtin':
-            self.materials.failed('请先切回内置白龙，再切换内置素材画质');return
+            self.materials.failed('请先切回内置妮可，再切换内置素材画质');return
         self._pending_material=(tier,Path(root))
         if self._desktop_hidden or not self.settings.get('character_visible',True):self.apply_material()
 
@@ -949,7 +984,7 @@ class DesktopPet(EnhancedPet):
             self.asset_root,self.manifest,self.idles,self.variants=old
             self.materials.failed('画质切换失败：'+str(error));return False
     def export_diagnostics(self):
-        self.record_state();path=ROOT/('白龙诊断-'+time.strftime('%Y%m%d-%H%M%S')+'.json')
+        self.record_state();path=ROOT/('妮可诊断-'+time.strftime('%Y%m%d-%H%M%S')+'.json')
         value=json.loads((STATE_DIR/'runtime.json').read_text(encoding='utf-8'))
         value['asset_count']=len(all_items(self.manifest));value['decode_error']=self.decode_error
         value['work_animation_count']=len([v for v in self.manifest.get('workAnimations',[]) if v]);value['semantic_work_actions']=True;value['explicit_task_arrival_animation']=True
@@ -1075,6 +1110,7 @@ class DesktopPet(EnhancedPet):
         if self.bubble.report:self.bubble.report.animation.stop();self.bubble.report.hide()
         if self.chat_window:self.chat_window.shutdown()
         if self.settings_dialog:self.settings_dialog.hide()
+        if self.action_audio:self.action_audio.stop()
         if self.player:self.player.close()
         if self.video_yield:self.video_yield.shutdown()
         super().closeEvent(event)

@@ -1,0 +1,309 @@
+{
+  "schema": 1,
+  "model": "doubao-seedance-2-0-260128",
+  "resolution": "720p",
+  "ratio": "adaptive",
+  "watermark": false,
+  "input_mode": "first-last",
+  "fps": 24,
+  "chroma_key": "#00ff00",
+  "identity_prompt": "以输入首帧和尾帧中的同一位妮可为唯一角色：可爱Q版二次元猫娘，粉色长发和粉色猫耳，巨大蓝色眼睛，蓝色蝴蝶结和金色爱心发饰，颈部金色铃铛，蓝白荷叶裙，粉色斜挎包与肩带，粉色猫尾巴，白袜和棕色短靴。严格保留图片中的脸型、头身比例、线宽、色板、服装层次和饰物位置。是同一张角色画在连续运动，不重新设计每一帧。",
+  "stage_prompt": "单镜头全身桌宠动画，正面固定镜头、固定焦距、无透视缩放。背景始终为纯色均匀RGB(0,255,0)绿幕，无地面、阴影、纹理、渐变或绿光反射；角色和道具不使用绿色。完整猫耳、头发、尾巴、手脚和鞋子始终在画面内。普通动作脚底位置锁定，不平移；仅悬空和落地动作允许规定的运动。动作缓起缓停，动作间有自然停留，服装遵从身体移动。首尾精确匹配提供的图片，不用淡出、溶解或镜头切换过渡。",
+  "negative_prompt": "禁止：文字、字幕、UI、Logo、水印、第二角色、真人、画面分屏、背景场景、镜头摇移或推拉、突然跳帧、频繁抖动、随机眨眼、闪烁变脸、身体大小呼吸式缩放、服装换色、道具变形、肢体穿插、额外手指、猫耳尾巴消失、白龙角翅膀、动态模糊、拖影、全屏粒子。",
+  "audio_policy": {
+    "preserve_original": true,
+    "sidecar": "WAV PCM 48kHz; same trim and original speed",
+    "playback": "manual-interaction-only; once; no loop; cancel on action change",
+    "runtime_status": "not-yet-connected"
+  },
+  "sources": [
+    "https://console.volcengine.com/ark/region:cn-beijing/docs/create-video-generation-task-api",
+    "https://docs.volcengine.com/docs/ark/create-video-generation-task-api?lang=zh",
+    "https://docs.volcengine.com/docs/ark/seedance-2-0?lang=en",
+    "https://docs.volcengine.com/docs/ark/get-video-generation-task-api?lang=zh"
+  ],
+  "actions": [
+    {
+      "id": "idle",
+      "name": "待机呼吸",
+      "duration": 5,
+      "group": "idle",
+      "base": "standing",
+      "generate_audio": false,
+      "motion_prompt": "0–1秒保持首帧站姿；1–4秒只完成一次非常轻的呼吸，胸肩上下位移不超过身高的0.5%，在2.2秒自然眨眼一次，发梢和尾尖缓慢摆动；4–5秒回到尾帧姿态并减速至静止。脚底、头部中心和身体大小始终稳定，不摇头、不扭腰、不说话。",
+      "audio_prompt": ""
+    },
+    {
+      "id": "idle2",
+      "name": "待机看向主人",
+      "duration": 6,
+      "group": "idle",
+      "base": "standing",
+      "generate_audio": false,
+      "motion_prompt": "0–1秒站稳；1–2.5秒眼睛先看向左侧、头部仅转5度，耳尖轻动；2.5–4秒视线回到镜头，露出轻微微笑；4–6秒缓慢回到尾帧。只做一次，脚底不动、身体不弹跳。",
+      "audio_prompt": ""
+    },
+    {
+      "id": "01",
+      "name": "招手打招呼",
+      "duration": 5,
+      "group": "interaction",
+      "base": "standing",
+      "generate_audio": true,
+      "motion_prompt": "0–0.8秒首帧站姿；0.8–1.5秒抬起右手至肩旁；1.5–3秒小幅招手两下，手腕平滑转动；3–4.4秒缓缓放下手；4.4–5秒回到尾帧站姿。保持五官、铃铛和包包结构不变。",
+      "audio_prompt": "1.5–2.5秒一句轻柔明亮的年轻女性声音“你好呀”，嘴型自然对应，句后闭嘴。无音乐、无旁白、无字幕。"
+    },
+    {
+      "id": "04",
+      "name": "灵感亮起",
+      "duration": 5,
+      "group": "interaction",
+      "base": "standing",
+      "generate_audio": true,
+      "motion_prompt": "0–1秒平静站立；1–2秒若有所思地抬手至脸旁；2–3秒眼睛微亮，竖起一根食指，头顶旁只出现一颗小金色星光；3–4秒星光自然消散并放下手；4–5秒返回尾帧。星光不遮挡猫耳。",
+      "audio_prompt": "灵感出现时一声短而轻的叮，随后安静；无音乐和人声。"
+    },
+    {
+      "id": "05",
+      "name": "得意叉腰",
+      "duration": 5,
+      "group": "interaction",
+      "base": "standing",
+      "generate_audio": true,
+      "motion_prompt": "0–1秒起势；1–2秒双手轻放腰侧，下巴略抬，露出得意小笑；2–3.2秒保持，尾尖慢摆一次；3.2–5秒双手落回原位，恢复尾帧。不夸张仰头、不改变身体比例。",
+      "audio_prompt": "2秒一声很轻的愉快“哼哼”，女性声音、短促自然，无背景音乐。"
+    },
+    {
+      "id": "08",
+      "name": "亲近贴贴",
+      "duration": 6,
+      "group": "interaction",
+      "base": "standing",
+      "generate_audio": true,
+      "motion_prompt": "0–1秒站姿；1–2.5秒双手合在胸前，上身向镜头方向轻倾5度，脸颊微红；2.5–4秒眯眼微笑，头部轻歪一次；4–6秒平稳直起并回到尾帧。脚底不移，镜头不推进，角色尺寸不放大。",
+      "audio_prompt": "2.5秒一声轻柔的“喵”，干净短音，无音乐和环境声。"
+    },
+    {
+      "id": "09",
+      "name": "害羞傲娇",
+      "duration": 6,
+      "group": "interaction",
+      "base": "standing",
+      "generate_audio": true,
+      "motion_prompt": "0–1秒站姿；1–2.5秒双臂轻抱胸，脸颊微红，头向右转8度；2.5–4秒眼神偷偷看回镜头；4–6秒松开双臂并恢复尾帧。只做一次，不反复甩头。",
+      "audio_prompt": "2秒一声轻轻的“哼”，声音柔和不尖锐，之后静音。"
+    },
+    {
+      "id": "13",
+      "name": "小小生气",
+      "duration": 5,
+      "group": "interaction",
+      "base": "standing",
+      "generate_audio": true,
+      "motion_prompt": "0–1秒站立；1–2秒小幅鼓起脸颊，两手在身体两侧轻握拳；2–3秒眉毛轻皱，尾巴只摆一次；3–5秒呼气放松，恢复首尾基准姿态。禁止跺脚震屏、快速抖动。",
+      "audio_prompt": "2.5秒短促可爱的呼气声，无喊叫、音乐或爆音。"
+    },
+    {
+      "id": "14",
+      "name": "困倦打哈欠",
+      "duration": 6,
+      "group": "interaction",
+      "base": "standing",
+      "generate_audio": true,
+      "motion_prompt": "0–1秒站姿；1–2.5秒一手遮住嘴小幅打哈欠，眼睛缓缓闭合；2.5–4秒眼睛睁开，轻轻揉一下眼角；4–6秒放下手并回到尾帧。不坐下、不倒地。",
+      "audio_prompt": "一次轻微哈欠和衣料声，音量轻，无音乐。"
+    },
+    {
+      "id": "18",
+      "name": "开心庆祝",
+      "duration": 6,
+      "group": "interaction",
+      "base": "standing",
+      "generate_audio": true,
+      "motion_prompt": "0–1秒站立；1–2.5秒双手上举至肩膀上方，双膝轻屈后只踮脚一次，不离地；2.5–4秒开心微笑，身旁几颗粉金小星光短暂闪现；4–6秒星光消散，放下双手返回尾帧。不能连续蹦跳。",
+      "audio_prompt": "2–3秒一句轻快的“太好啦”，年轻女性声音；伴一次很轻的铃铛声，无配乐、无字幕。"
+    },
+    {
+      "id": "22",
+      "name": "猫爪印记",
+      "duration": 6,
+      "group": "interaction",
+      "base": "standing",
+      "generate_audio": true,
+      "motion_prompt": "0–1秒站姿；1–2.5秒伸出右手展示手心；2.5–4秒手心旁出现一个小粉色猫爪光印，缓慢亮起再消散；4–6秒收手返回尾帧。印记是纯图形，不是文字，禁止皮肤变形。",
+      "audio_prompt": "光印亮起时短小柔和的魔法音，无音乐或说话。"
+    },
+    {
+      "id": "25",
+      "name": "吹出小星星",
+      "duration": 6,
+      "group": "interaction",
+      "base": "standing",
+      "generate_audio": true,
+      "motion_prompt": "0–1秒站姿；1–2.5秒双手在嘴前轻拢，鼓嘴轻吹一次；2.5–4秒两三颗粉金小星星从掌心轻轻飘出、在身边消散；4–6秒双手放回原位，回到尾帧。没有火焰、烟雾或大面积粒子。",
+      "audio_prompt": "一次轻吹气声和极轻的星光音，无尖锐声音和配乐。"
+    },
+    {
+      "id": "17",
+      "name": "偷吃面包",
+      "duration": 7,
+      "group": "interaction",
+      "base": "standing",
+      "generate_audio": true,
+      "motion_prompt": "0–1秒站姿；1–2秒从粉色斜挎包里取出一个小面包；2–4秒双手拿稳面包，小口咬一次，面包只在咬口处自然缺一小块；4–5.5秒微笑并把剩余面包放回包里；5.5–7秒双手返回尾帧。面包形状稳定，不变成饮料，道具出现消失必须经过取放过程。",
+      "audio_prompt": "一次轻咬声，4秒小声“好吃”，年轻女性声音，无咀嚼放大声和配乐。"
+    },
+    {
+      "id": "20",
+      "name": "双手比心",
+      "duration": 6,
+      "group": "interaction",
+      "base": "standing",
+      "generate_audio": true,
+      "motion_prompt": "0–1秒站立；1–2.5秒双手在胸前慢慢合成一个小爱心手势；2.5–4秒保持微笑，眼神看向镜头；4–6秒双手松开返回尾帧。手指数量正确，爱心手势连续形成。",
+      "audio_prompt": "2.5秒一个温柔短小的铃音，无配乐和人声。"
+    },
+    {
+      "id": "21",
+      "name": "猫咪约定",
+      "duration": 7,
+      "group": "interaction",
+      "base": "standing",
+      "generate_audio": true,
+      "motion_prompt": "0–1秒站姿；1–2.5秒从包中取出小小的无字淡金卡片；2.5–4.5秒一手托卡片，另一手轻点卡片中央的猫爪图形；4.5–6秒收回卡片；6–7秒回到尾帧。无文字、无符文串，禁止变成白龙的角或翅膀。",
+      "audio_prompt": "点卡片时一次短小叮声，3秒轻声“约好啦”，无音乐和字幕。"
+    },
+    {
+      "id": "24",
+      "name": "收藏小宝藏",
+      "duration": 8,
+      "group": "interaction",
+      "base": "standing",
+      "generate_audio": true,
+      "motion_prompt": "0–1秒站立；1–2.5秒从斜挎包取出一个小粉色盒子；2.5–4秒打开盒盖，露出一颗金色小星星；4–5.5秒低头开心看一眼，然后合盖；5.5–7秒把盒子放回包中；7–8秒回到尾帧。盒子全程同一个，不能变大小或穿过手掌。",
+      "audio_prompt": "开合盒子时细小咔哒声，星星出现时一个柔和叮声，无背景音乐。"
+    },
+    {
+      "id": "26",
+      "name": "信任守护",
+      "duration": 6,
+      "group": "interaction",
+      "base": "standing",
+      "generate_audio": true,
+      "motion_prompt": "0–1秒站立；1–2.5秒双手放在胸前铃铛下方，眼神柔和；2.5–4秒向镜头轻点头一次，尾巴缓缓贴近身体；4–6秒放下手回到尾帧。铃铛不能变形，动作温柔缓慢。",
+      "audio_prompt": "2.5–3.5秒轻声“我在呢”，年轻女性声音，干净无混响、无配乐。"
+    },
+    {
+      "id": "drag",
+      "name": "悬空拖拽",
+      "duration": 5,
+      "group": "motion",
+      "base": "airborne",
+      "generate_audio": true,
+      "motion_prompt": "首尾均采用图片中的悬空高度。0–1秒保持完整身体在画面内；1–4秒双脚略收、双手轻张维持平衡，身体像小摆锤一样只左右晃动一个缓慢周期，幅度小于身宽的4%，头发裙摆有轻微滞后；4–5秒摆动减速回到尾帧。固定高度，无地面、无抓手、无绳子，不忽高忽低。",
+      "audio_prompt": "0.8秒一声轻轻的“诶”，仅一次，随后安静；不生成持续摆动音或音乐。"
+    },
+    {
+      "id": "landing",
+      "name": "轻轻落地",
+      "duration": 4,
+      "group": "motion",
+      "base": "landing",
+      "generate_audio": true,
+      "motion_prompt": "图片1为悬空位置，图片2为站立位置。0–0.6秒从首帧平稳向下落；0.6–1.2秒鞋底落在尾帧高度，双膝轻屈吸收冲击；1.2–2.5秒缓慢站直，头发和裙边一次小幅回落；2.5–4秒保持尾帧站姿。全程仅一次落地，不反弹、不再次升空。",
+      "audio_prompt": "鞋底落地时一次轻柔扑声，之后静音，无人声和配乐。"
+    },
+    {
+      "id": "quota",
+      "name": "查看额度",
+      "duration": 7,
+      "group": "utility",
+      "base": "standing",
+      "generate_audio": true,
+      "motion_prompt": "0–1秒站立；1–2秒从包中拿出无文字小卡片；2–4秒双眼看卡片，手指缓慢点一下中央简单圆形图案；4–5.5秒抬眼看镜头，轻点头；5.5–7秒收好卡片并回到尾帧。卡片不显示文字数字、条形码或UI。",
+      "audio_prompt": "一次轻翻卡片声，无人声和音乐。"
+    },
+    {
+      "id": "work01",
+      "name": "收到任务",
+      "duration": 5,
+      "group": "work",
+      "base": "standing",
+      "generate_audio": false,
+      "motion_prompt": "0–1秒待机站姿；1–2秒竖起猫耳，眼神专注；2–3.5秒右手在胸前轻握拳，向镜头点头一次表示收到；3.5–5秒放下手、返回尾帧。动作简洁，幅度小，不反复点头。",
+      "audio_prompt": ""
+    },
+    {
+      "id": "work02",
+      "name": "持续处理任务",
+      "duration": 8,
+      "group": "work",
+      "base": "standing",
+      "generate_audio": false,
+      "motion_prompt": "0–1秒站姿；1–2秒从包中取出固定外形的小蓝色笔记本电脑，左臂托住底座，右手放键盘；2–6秒保持同一工作姿态，完成两次缓慢轻敲键盘周期，每周期约2秒，眼睛跟随屏幕，电脑大小和键盘始终固定；6–7秒合上电脑放回包；7–8秒回到尾帧。中段2–6秒作为候选工作循环，须保持周期首尾手指、头部与电脑位置一致。",
+      "audio_prompt": "",
+      "loop_candidate": {
+        "start": 2,
+        "end": 6,
+        "status": "requires-visual-review",
+        "repeat_audio": false
+      }
+    },
+    {
+      "id": "work03",
+      "name": "整理归档",
+      "duration": 7,
+      "group": "work",
+      "base": "standing",
+      "generate_audio": false,
+      "motion_prompt": "0–1秒站立；1–2秒从包中取出两张无字纸和一个蓝色文件夹；2–4.5秒把纸叠齐并缓慢收入文件夹；4.5–6秒把文件夹收回包内；6–7秒回到尾帧。纸张数量固定，禁止分裂或变成其他道具。",
+      "audio_prompt": ""
+    },
+    {
+      "id": "work04",
+      "name": "翻阅资料",
+      "duration": 8,
+      "group": "work",
+      "base": "standing",
+      "generate_audio": false,
+      "motion_prompt": "0–1秒站立；1–2秒从包中取出一本蓝白封面的无字书并打开；2–6秒保持左手托书、右手轻翻页的稳定姿势，分两次缓慢翻页，每次结束右手回到同一页边，头部只轻微跟随；6–7秒合书收好；7–8秒回到尾帧。中段2–6秒用于候选循环，书本的大小、封面和厚度不得变化。",
+      "audio_prompt": "",
+      "loop_candidate": {
+        "start": 2,
+        "end": 6,
+        "status": "requires-visual-review",
+        "repeat_audio": false
+      }
+    },
+    {
+      "id": "work05",
+      "name": "放大镜检查",
+      "duration": 7,
+      "group": "work",
+      "base": "standing",
+      "generate_audio": false,
+      "motion_prompt": "0–1秒站姿；1–2秒从包中取出一个小金色放大镜；2–4.5秒在胸前缓慢移动放大镜观察一个小点，眼睛专注，镜片不放大或扭曲脸；4.5–6秒收好放大镜；6–7秒回到尾帧。镜头不动，无屏幕或文字。",
+      "audio_prompt": ""
+    },
+    {
+      "id": "hungry",
+      "name": "饥饿提醒",
+      "duration": 6,
+      "group": "care",
+      "base": "standing",
+      "generate_audio": false,
+      "motion_prompt": "0–1秒站立；1–2.5秒双手轻放肚子前，眼睛看向主人，猫耳稍微低下；2.5–4秒轻揉一下肚子，露出期待表情；4–6秒手放下回到尾帧。自动饥饿提醒用无声动画，文字由桌宠气泡显示，视频内不生成文字。",
+      "audio_prompt": ""
+    },
+    {
+      "id": "feed",
+      "name": "吃面包反馈",
+      "duration": 7,
+      "group": "care",
+      "base": "standing",
+      "generate_audio": true,
+      "motion_prompt": "0–1秒站立；1–2秒从自己的包中拿出一个松软小面包；2–4秒双手捧稳小口吃一口，露出满足笑容；4–5.5秒将剩余面包放回包中，轻点头感谢；5.5–7秒回到尾帧。面包不能变形或突然消失。",
+      "audio_prompt": "2.5秒很轻的一次咬面包声，4–5秒温柔地说“谢谢主人”，年轻女性声音，不要背景音乐、字幕或夸张咀嚼声。"
+    }
+  ]
+}

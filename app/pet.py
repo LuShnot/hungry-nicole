@@ -12,7 +12,7 @@ from version import VERSION
 from typography import FONT_CSS
 
 ROOT=Path(sys.executable).resolve().parent if getattr(sys,'frozen',False) else Path(__file__).resolve().parents[1]
-ASSETS=ROOT/'outputs/白龙桌宠素材'
+ASSETS=ROOT/'outputs/妮可桌宠素材'
 FLAGS=Qt.WindowType.FramelessWindowHint|Qt.WindowType.WindowStaysOnTopHint|Qt.WindowType.Tool
 
 def clamp_position(position,size,area):
@@ -36,6 +36,7 @@ class Bubble(QWidget):
         super().__init__(None, FLAGS)
         self.setAttribute(Qt.WidgetAttribute.WA_TranslucentBackground)
         self.setAttribute(Qt.WidgetAttribute.WA_ShowWithoutActivating)
+        if sys.platform=='darwin':self.setAttribute(Qt.WidgetAttribute.WA_MacAlwaysShowToolWindow)
         self.layout=QVBoxLayout(self); self.layout.setContentsMargins(13,10,13,10);self.layout.setSpacing(5)
         self.setFixedWidth(256)
         self.setStyleSheet('QLabel {'+FONT_CSS+'color:#332644;font-size:12px;} QProgressBar {background:#eee8f5;border:1px solid #c8b5dc;border-radius:7px;height:14px;} QProgressBar::chunk {background:#a47bc9;border-radius:6px;}')
@@ -70,8 +71,13 @@ class Pet(QWidget):
         super().__init__(None,FLAGS)
         self.setAttribute(Qt.WidgetAttribute.WA_TranslucentBackground)
         self.setAttribute(Qt.WidgetAttribute.WA_ShowWithoutActivating)
-        self.setWindowTitle('白龙桌宠');self.setFixedSize(256,256)
+        if sys.platform=='darwin':self.setAttribute(Qt.WidgetAttribute.WA_MacAlwaysShowToolWindow)
+        if sys.platform=='darwin':self.setWindowFlag(Qt.WindowType.WindowDoesNotAcceptFocus,True)
+        self.setWindowTitle('妮可桌宠');self.setFixedSize(256,256)
         self.manifest=json.loads((getattr(self,'asset_root',ASSETS)/'素材清单.json').read_text(encoding='utf-8'))
+        from character_text import name as character_name
+        self.character_name=character_name(self)
+        self.setWindowTitle(self.character_name+'桌宠')
         self.variants=[v for v in self.manifest['variants'] if self.asset_path(v).is_file()]
         self.idles=[self.manifest['idle']]+self.manifest.get('additionalIdleAnimations',[])[:1]
         self.cache=OrderedDict();self.pinned_frames={};self.frames=[];self.current=None;self.mode='idle';self.index=0
@@ -92,8 +98,8 @@ class Pet(QWidget):
         items=self.idles+self.variants+[self.manifest[name] for name in ('dragAnimation','landingAnimation','quotaAnimation') if self.manifest.get(name)]
         progress=None
         if QApplication.platformName()!='offscreen' and not getattr(self,'LAZY',False):
-            progress=QProgressDialog('白龙正在准备动作，请稍等…','',0,len(items))
-            progress.setCancelButton(None);progress.setWindowTitle('白龙桌宠');progress.setMinimumDuration(0);progress.show()
+            progress=QProgressDialog(self.character_name+'正在准备动作，请稍等…','',0,len(items))
+            progress.setCancelButton(None);progress.setWindowTitle(self.character_name+'桌宠');progress.setMinimumDuration(0);progress.show()
         for i,item in enumerate([] if getattr(self,'LAZY',False) else items):
             key=str(self.asset_path(item));self.pinned_frames[key]=self.load(item);self.cache.pop(key,None)
             if progress:progress.setValue(i+1);QApplication.processEvents()
@@ -301,7 +307,7 @@ def main():
             if '--enable-autostart' in sys.argv:
                 enable_autostart();message='已开启：以后登录Windows时，助手会自动运行；打开GPT后启动桌宠。\n如要移动桌宠文件夹，请先关闭自动启动，移好后再开启。'
             else:disable_autostart();message='已关闭桌宠自动启动。'
-            QMessageBox.information(None,'白龙桌宠',message);return 0
+            QMessageBox.information(None,'妮可桌宠',message);return 0
         except Exception as error:QMessageBox.critical(None,'设置失败',str(error));return 1
     socket=QLocalSocket();socket.connectToServer('bailong-desktop-pet-v1')
     if socket.waitForConnected(150):return 0
@@ -323,7 +329,7 @@ def main():
         if '--preview' in sys.argv:
             QTimer.singleShot(500,lambda:pet.grab().save(str(ROOT/'app/桌宠窗口预览.png')))
             QTimer.singleShot(900,app.quit)
-    except Exception as error:QMessageBox.critical(None,'白龙桌宠启动失败',str(error));return 1
+    except Exception as error:QMessageBox.critical(None,'妮可桌宠启动失败',str(error));return 1
     return app.exec()
 
 if __name__=='__main__':sys.exit(main())

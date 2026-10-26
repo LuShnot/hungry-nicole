@@ -217,7 +217,7 @@ class EnhancedPet(Pet):
         except (OSError,ValueError):self.settings={}
         self.enhanced_ready=False
         super().__init__()
-        self.setWindowTitle('白龙桌宠增强版')
+        self.setWindowTitle(self.character_name+'桌宠增强版')
         self.bubble.close()
         self.bubble.deleteLater()
         self.bubble=HeadBubble(self)
@@ -282,7 +282,7 @@ class EnhancedPet(Pet):
         self.diagnostic_timer.timeout.connect(self.record_state)
         self.diagnostic_timer.start()
         self.tray=QSystemTrayIcon(QIcon(self.frames[0]),self)
-        self.tray.setToolTip('白龙桌宠增强版 · 双击角色查额度')
+        self.tray.setToolTip(self.character_name+'桌宠增强版 · 双击角色查额度')
         tray_menu=QMenu()
         tray_menu.addAction('显示 / 隐藏气泡',self.toggle_bubble)
         tray_menu.addAction('立即查询额度',self.quota)
@@ -818,7 +818,7 @@ def main():
     from typography import install_ui_font
     install_ui_font(app)
     app.setQuitOnLastWindowClosed(False)
-    server_name='bailong-enhanced-local-v1'
+    server_name='hungry-nicole-local-v1'
     if '--smoke-test' in sys.argv:server_name+='-smoke-'+str(os.getpid())
     socket=QLocalSocket()
     socket.connectToServer(server_name)

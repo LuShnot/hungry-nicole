@@ -31,3 +31,14 @@ BailongEnhanced/
 release-manual/
 
 references/
+
+# Only reviewed artwork goes into Git; runtime packages go to Releases.
+outputs/
+.local-state/
+*.wav
+*.mp4
+*.webp
+pet-preview.png
+bubble-preview.png
+app/运行状态.json
+app/桌宠窗口预览.png

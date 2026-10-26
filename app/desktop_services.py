@@ -88,7 +88,7 @@ def checked_path(root,name):
 
 def all_items(manifest):
     result=[manifest['idle']]+manifest.get('additionalIdleAnimations',[])+manifest.get('variants',[])
-    for key in ('dragAnimation','landingAnimation','quotaAnimation'):
+    for key in ('dragAnimation','landingAnimation','quotaAnimation','feedAnimation','alternateFeedAnimation'):
         if manifest.get(key):result.append(manifest[key])
     for group in ('clickAnimations','moveAnimations','turnAnimations','workAnimations'):
         result.extend(v for v in manifest.get(group,[]) if isinstance(v,dict))
@@ -129,6 +129,9 @@ def validate_character(root):
             with Image.open(path) as im:
                 if im.width*im.height>16777216:raise ValueError('动画分辨率过大')
                 for frame in range(im.n_frames):im.seek(frame);im.load()
+        if item.get('audioFile'):
+            audio=checked_path(root,item['audioFile'])
+            if audio.suffix.lower()!='.wav':raise ValueError('动作音轨必须是 WAV')
         scale=float(item.get('renderScale',1))
         if not .1<=scale<=3:raise ValueError('素材缩放参数无效')
         offset=item.get('renderOffset',[0,0])
@@ -157,6 +160,9 @@ def import_character(source,destination):
                 if result.returncode:raise ValueError('WebM转换失败，请先导出透明WebP或GIF')
                 converted[name]=str(target.relative_to(stage)).replace('\\','/')
             else:shutil.copy2(src,target)
+            if item.get('audioFile'):
+                audio=checked_path(source,item['audioFile']);out=stage/item['audioFile']
+                out.parent.mkdir(parents=True,exist_ok=True);shutil.copy2(audio,out)
         def rewrite(value):
             if isinstance(value,dict):
                 original=value.get('playbackFile') or value.get('file')

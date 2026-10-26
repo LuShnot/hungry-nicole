@@ -1,5 +1,6 @@
 """Compact, accessible quota dials; full information remains in the details view."""
 import math
+import sys
 import time
 from PySide6.QtCore import Qt,QRectF,QSize,Signal,QTimer,QVariantAnimation,QEasingCurve,QAbstractAnimation
 from PySide6.QtGui import QColor,QFont,QFontMetrics,QPainter,QPen,QTextLayout,QTextOption,QIcon,QPixmap,QPolygonF,QPalette
@@ -391,7 +392,9 @@ class CompactBubble(Bubble):
         self.setFixedWidth(268);self.layout.setContentsMargins(10,6,10,6);self.layout.setSpacing(3)
         self.layout.setSizeConstraint(QLayout.SizeConstraint.SetNoConstraint)
         self.setFont(font(12));self.setStyleSheet('QLabel{'+FONT_CSS+'font-weight:500;color:#393343;font-size:12px;background:transparent;}')
-        self.windows=[];self.status='已启动，正在连接 Codex…';self.heading='白龙 · Codex 桌面伙伴'
+        from character_text import name as character_name
+        self.character_name=character_name(self.owner_pet())
+        self.windows=[];self.status='已启动，正在连接 Codex…';self.heading=self.character_name+' · Codex 桌面伙伴'
         self.quota_caption='额度加载中…';self.reset_snapshot=None;self.reset_feed_error=False;self.reset_error_details=None
         self.show_quota=True;self.enabled=True;self.expanded=False
         self.bubble_mode='auto';self.auto_compact=False;self._minimal_normal_open=False;self._last_compact_surface=None
@@ -425,7 +428,7 @@ class CompactBubble(Bubble):
         self.status_view.overflow.clicked.connect(self.cycle_conversations)
         self.status_view.heightChanged.connect(self._status_height_changed)
         self.status_view.animation.finished.connect(self._status_height_finished)
-        self.setWindowTitle('白龙增强版 · 状态气泡');self.redraw()
+        self.setWindowTitle(self.character_name+'增强版 · 状态气泡');self.redraw()
     def clear(self):
         # Headers are rebuilt; the tiny task animation must keep its clock.
         self._plot_resume=None;self.deck=None
@@ -480,6 +483,8 @@ class CompactBubble(Bubble):
         self._editing_flags(True);self.redraw();self.size_transition.commit()
     def _editing_flags(self,editing):
         self.setAttribute(Qt.WidgetAttribute.WA_ShowWithoutActivating,not editing)
+        if sys.platform=='darwin' and self.windowHandle():
+            self.windowHandle().setFlag(Qt.WindowType.WindowDoesNotAcceptFocus,not editing)
         through=bool(getattr(self.owner_pet(),'settings',{}).get('mouse_through',False)) and not editing
         self.setAttribute(Qt.WidgetAttribute.WA_TransparentForMouseEvents,through)
         if self.windowHandle():self.windowHandle().setFlag(Qt.WindowType.WindowTransparentForInput,through)
@@ -487,7 +492,7 @@ class CompactBubble(Bubble):
         toolbar=QWidget();toolbar.setObjectName('detail_shortcuts');toolbar.setFixedHeight(32)
         toolbar.setStyleSheet('QWidget#detail_shortcuts{background:#f2edf7;border-radius:7px;}')
         actions=QHBoxLayout(toolbar);actions.setContentsMargins(3,1,3,1);actions.setSpacing(3)
-        for kind,text,tip,slot in [('details','状态','返回进入前的状态视图',self.return_to_status),('chat','聊天','和白龙聊天',lambda:self.chatRequested.emit()),('settings','设置','桌宠设置',lambda:self.settingsRequested.emit())]:
+        for kind,text,tip,slot in [('details','状态','返回进入前的状态视图',self.return_to_status),('chat','聊天','和'+self.character_name+'聊天',lambda:self.chatRequested.emit()),('settings','设置','桌宠设置',lambda:self.settingsRequested.emit())]:
             shortcut=action_button(kind,tip,text,keyboard=self.panel_page!='status');shortcut.setCheckable(True)
             shortcut.setChecked(self.panel_page==({'details':'status'}.get(kind,kind)))
             shortcut.clicked.connect(lambda checked=False,s=slot:s());actions.addWidget(shortcut,1)
@@ -511,7 +516,7 @@ class CompactBubble(Bubble):
             codex=action_button('external','打开 Codex','Codex',keyboard=True);codex.setObjectName('open_codex');codex.clicked.connect(lambda:self.codexRequested.emit());row.addWidget(codex)
             close=action_button('collapse','收起到正常气泡','收起',keyboard=True);close.clicked.connect(self.collapse_to_normal);row.addWidget(close)
             self.add(header);self.add(self.navigation());self.add(self.editor_stack)
-        self.editor_title.setText('白龙 · '+('聊天' if self.panel_page=='chat' else '设置'))
+        self.editor_title.setText(self.character_name+' · '+('聊天' if self.panel_page=='chat' else '设置'))
         for button in self.findChildren(QToolButton):
             if button.objectName() in ('bubble_chat','bubble_settings'):
                 button.setChecked(button.objectName()=='bubble_'+self.panel_page)

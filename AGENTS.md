@@ -1,6 +1,6 @@
 # 项目协作
 
-这是 Windows 独立白龙桌宠增强版。当前基线 v0.9.9 / UI87。先阅读 HANDOFF.md、README.md、NOTICE.md、docs/DEVELOPMENT.md 与 docs/迭代历史.txt。
+这是基于白龙桌宠 v0.9.9 / UI87 的饥饿的妮可，当前版本 0.10.0。先阅读 HANDOFF.md、README.md、NOTICE.md 与 docs/DEVELOPMENT.md。
 
 - 禁止批量删除文件或目录；构建和部署脚本可能间接清理目录，运行前须检查。需要批量删除时先征询用户。
 - 发布与部署要检查性能开销，包括主线程阻塞、定时器、隐藏时空转、CPU、内存和磁盘访问；只陈述实际量到的范围。

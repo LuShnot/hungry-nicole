@@ -48,6 +48,55 @@ class CareUITests(unittest.TestCase):
         feed.trigger()  # stale menu / double click cannot spend twice
         self.assertEqual(self.pet.care_state['fullness'], 70)
 
+    def test_bread_animation_only_after_successful_feeding(self):
+        item = dict(id='17', file='animations/17.webp')
+        self.pet.manifest['feedAnimation'] = item
+        self.usage(5_000_000);self.usage(6_000_000)
+        calls = []
+        def chosen(action, **kwargs):
+            calls.append((action, kwargs, self.pet._feeding_bread))
+        with patch.object(self.pet, 'choose', side_effect=chosen):
+            self.pet.update_care(feed=True)  # full: preserve bread, no animation
+            self.assertEqual(calls, [])
+            self.assertEqual(self.pet.care_state['bread'], 1)
+            self.now += 60 * 300
+            menu = QMenu();self.pet.build_menu(menu)
+            food = next(a.menu() for a in menu.actions() if a.text() == '食物')
+            bread = next(a for a in food.actions() if a.objectName() == 'feed_bread')
+            bread.trigger()
+            self.assertEqual(calls, [(item, {'manual': True}, True)])
+            self.assertFalse(self.pet._feeding_bread)
+            self.assertEqual(self.pet.care_state['fullness'], 70)
+            self.assertEqual(self.pet.care_state['bread'], 0)
+            bread.trigger()  # stale action: no second animation without bread
+            self.assertEqual(len(calls), 1)
+
+    def test_bread_excluded_from_generic_actions_even_for_legacy_manifest(self):
+        item = dict(id='17', file='animations/17.webp')
+        self.pet.variants.append(item)
+        for items in self.pet.action_groups().values():
+            self.assertNotIn(item, items)
+        with patch.object(self.pet, 'play') as play:
+            self.pet.choose(item, interactive=True)
+            self.pet.choose(item, manual=True)
+            play.assert_not_called()
+        self.assertFalse(self.pet.play(item, 'variant'))
+
+    def test_macos_passive_windows_do_not_raise_or_accept_keys(self):
+        import sys
+        from PySide6.QtCore import Qt
+        if sys.platform != 'darwin':self.skipTest('macOS window policy')
+        self.assertTrue(self.pet.testAttribute(Qt.WidgetAttribute.WA_MacAlwaysShowToolWindow))
+        self.assertTrue(self.pet.windowFlags() & Qt.WindowType.WindowDoesNotAcceptFocus)
+        self.assertTrue(self.pet.bubble.testAttribute(Qt.WidgetAttribute.WA_MacAlwaysShowToolWindow))
+        with patch.object(self.pet.bubble, 'raise_') as raised:
+            self.pet.position_bubble()
+            raised.assert_not_called()
+        self.pet.bubble._editing_flags(True)
+        self.assertFalse(self.pet.bubble.windowHandle().flags() & Qt.WindowType.WindowDoesNotAcceptFocus)
+        self.pet.bubble._editing_flags(False)
+        self.assertTrue(self.pet.bubble.windowHandle().flags() & Qt.WindowType.WindowDoesNotAcceptFocus)
+
     def test_hidden_bubble_defers_hunger_and_does_not_reopen(self):
         self.pet.apply_settings({'bubble': False}, save=False)
         self.now += 70 * 300
