@@ -10,6 +10,7 @@ from surface_morph import PANEL_RADIUS
 from status_indicator import StatusIndicator
 from refresh_indicator import RefreshButton
 from pet import Bubble
+from quick_actions import DEFAULT_ACTION
 from enhanced_core import clean_text
 from typography import FONT_FAMILIES,FONT_CSS,ui_font
 from ui_theme import editor_stylesheet,PRIMARY,ACCENT,SELECTED,DISABLED
@@ -421,7 +422,7 @@ class CompactBubble(Bubble):
             palette.setColor(role,QColor(color))
         self.editor_stack.setPalette(palette)
         self.status_indicator=StatusIndicator(self.content)
-        self.island=None;self.minimal_quota=None;self.shortcut_button=None;self.capsule_action='chatgpt';self._quota_reset_requested=None;self._card_press=None;self._card_dragged=False
+        self.island=None;self.minimal_quota=None;self.shortcut_button=None;self.capsule_action=DEFAULT_ACTION;self._quota_reset_requested=None;self._card_press=None;self._card_dragged=False
         self.status_indicator.changed.connect(self._refresh_island_status)
         self.size_transition=PanelTransition(self)
         self.size_transition.animation.finished.connect(self._apply_pending_mode)

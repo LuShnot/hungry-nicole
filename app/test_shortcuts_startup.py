@@ -33,13 +33,13 @@ class ShortcutTests(unittest.TestCase):
     def click(self,key):
         self.pet.apply_settings(dict(capsule_action=key),save=False);settle(self.pet)
         self.pet.bubble.shortcut_button.click()
-    def test_default_gpt_uses_browser_without_expanding_or_changing_size(self):
+    def test_default_nicole_uses_browser_without_expanding_or_changing_size(self):
         b=self.pet.bubble;size=b.size()
         with patch('desktop.QDesktopServices.openUrl',return_value=True) as opened:
             b.shortcut_button.click()
-        self.assertEqual(opened.call_args.args[0].toString(),'https://chatgpt.com/')
+        self.assertEqual(opened.call_args.args[0].toString(),'https://magicneko.com/')
         self.assertTrue(b.is_island());self.assertEqual(b.size(),size)
-        self.assertEqual(b.shortcut_button.accessibleName(),'GPT 网页')
+        self.assertEqual(b.shortcut_button.accessibleName(),'妮可主页')
     def test_local_actions_dispatch_once_to_existing_entry_points(self):
         for key,method in [('codex','open_assistant'),('chat','open_chat'),('settings','open_settings'),('report','open_report')]:
             with self.subTest(key=key),patch.object(self.pet,method) as called:
@@ -53,7 +53,7 @@ class ShortcutTests(unittest.TestCase):
     def test_settings_draft_validates_url_and_reloads_saved_choice(self):
         self.pet.open_settings();settle(self.pet);s=self.pet.settings_dialog
         s.shortcut.setCurrentIndex(s.shortcut.findData('website'));s.website.setText('file:///C:/Windows/cmd.exe');s.apply()
-        self.assertEqual(self.pet.settings['capsule_action'],'chatgpt');self.assertIn('失败',s.status.text())
+        self.assertEqual(self.pet.settings['capsule_action'],'magicneko');self.assertIn('失败',s.status.text())
         s.website.setText('https://example.org/a?lang=zh');s.apply()
         self.assertFalse(s.draft.dirty);self.assertEqual(self.pet.settings['capsule_action'],'website')
         self.pet.bubble.return_to_status();settle(self.pet)

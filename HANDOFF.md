@@ -1,3 +1,7 @@
+# 0.10.2 网页入口
+
+新增右键游戏入口和 magicneko 首页快捷功能，新用户默认选 magicneko；已有配置不强制覆盖。链接走 QDesktopServices.openUrl，只在主动点击时打开。
+
 # 0.10.1 面板焦点修复
 
 - codex_desktop_open 原来只检测 Windows 的 exe，macOS 每隔五秒会误判未运行。现在识别 Codex.app / ChatGPT.app 主进程；不可读取返回未知。

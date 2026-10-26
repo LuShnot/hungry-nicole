@@ -796,12 +796,12 @@ class DesktopPet(EnhancedPet):
         toggles={'character':'character_visible','pin':'on_top','lock':'no_move','through':'mouse_through','bubble':'bubble','detach':'panel_detached'}
         if command in toggles:self.set_option(toggles[command],checked);return
         if command=='status' and not self.settings['bubble']:self.set_option('bubble',True)
-        commands={'status':self.open_status,'settings':self.open_settings,'chat':self.open_chat,
+        commands={'status':self.open_status,'settings':self.open_settings,'chat':self.open_chat,'games':self.open_games,
             'visible':self.toggle_pet,'recover':self.recover,'position':self.reset_position,
             'walk':lambda:self.set_option('wandering',not self.settings['wandering']),'quit':self.close}
         commands[command]()
     def menu_command(self,menu,command):
-        labels={'status':'查看状态','settings':'桌宠设置…','chat':'和'+self.character_name+'聊天…',
+        labels={'games':'妮可陪我玩游戏','status':'查看状态','settings':'桌宠设置…','chat':'和'+self.character_name+'聊天…',
             'visible':'显示桌面组件' if self._desktop_hidden else '隐藏全部组件','recover':'找回组件并关闭穿透','character':'显示人物',
             'mode_auto':'自动 / 正常卡片','mode_mini':'胶囊模式','mode_minimal':'极简：额度百分比',
             'position':'回到当前屏幕右下角','pin':'始终置顶','lock':'锁定人物位置（含拖动）',
@@ -818,12 +818,12 @@ class DesktopPet(EnhancedPet):
         for food in menu.findChildren(QMenu,'pet_food_menu'):food.deleteLater()
         menu.clear()
         if tray:
-            for command in ('recover','visible','status','settings'):self.menu_command(menu,command)
+            for command in ('recover','visible','status','settings','games'):self.menu_command(menu,command)
             self.add_food_menu(menu)
             display=menu.addMenu('显示方式');self.menu_command(display,'character');self.menu_command(display,'bubble');self.menu_command(display,'detach')
             for mode in ('auto','mini','minimal'):self.menu_command(display,'mode_'+mode)
             menu.addSeparator();self.menu_command(menu,'quit');return
-        for command in ('bubble','status','chat','walk'):self.menu_command(menu,command)
+        for command in ('bubble','status','chat','walk','games'):self.menu_command(menu,command)
         self.add_food_menu(menu)
         desktop=menu.addMenu('桌面操作')
         for command in ('character','pin','lock','through','detach'):self.menu_command(desktop,command)
@@ -870,12 +870,16 @@ class DesktopPet(EnhancedPet):
         self.show_panel(self.chat_window)
     def open_chat_service(self):
         self.open_chat();self.chat_window.provider()
+    def open_games(self):
+        from quick_actions import NICOLE_GAMES_URL
+        if not QDesktopServices.openUrl(QUrl(NICOLE_GAMES_URL)):
+            self.say('未能打开默认浏览器，请检查系统的浏览器设置。',6000)
     def open_shortcut(self):
-        from quick_actions import action_info,website_url
+        from quick_actions import action_info,website_url,NICOLE_HOME_URL
         action=action_info(self.settings.get('capsule_action'))[0]
-        if action in ('chatgpt','website'):
+        if action in ('magicneko','chatgpt','website'):
             try:
-                url='https://chatgpt.com/' if action=='chatgpt' else website_url(self.settings.get('capsule_website'))
+                url=NICOLE_HOME_URL if action=='magicneko' else 'https://chatgpt.com/' if action=='chatgpt' else website_url(self.settings.get('capsule_website'))
                 if not QDesktopServices.openUrl(QUrl(url)):raise OSError('未能打开默认浏览器，请检查系统的浏览器设置。')
             except (ValueError,OSError) as error:self.say(str(error),6000)
         elif action=='codex':self.open_assistant()

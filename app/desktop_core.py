@@ -7,12 +7,13 @@ import time
 from pathlib import Path
 
 from version import VERSION
+from quick_actions import DEFAULT_ACTION
 DEFAULTS=dict(schema=2,scale=1.0,playback_speed=1.0,action_gap=2.0,
     random_interval=25.0,move_speed=55.0,move_range=0.75,wander_horizontal_only=True,wander_home=None,drag_physics=True,
     on_top=True,video_fullscreen_yield=True,no_move=False,mouse_through=False,wandering=False,random_actions=False,
     commentary=True,sound=True,bubble=True,quota_visible=True,self_talk=False,character_visible=True,card_anchor=None,panel_detached=False,codex_exit=False,
     status_actions=True,status_action_interval=12.,status_response_revision=2,update_checks=False,token_chart_range='all',bubble_mode='auto',
-    capsule_action='chatgpt',capsule_website='',talk_min=30.0,talk_max=90.0,talk_quiet=True,
+    capsule_action=DEFAULT_ACTION,capsule_website='',talk_min=30.0,talk_max=90.0,talk_quiet=True,
     talk_lines=['忙完记得休息一下。','我在这里陪着你。','今天也一起把小事做好吧。'],
     facing=1,character='builtin',character_preferences={},chat_follow=False)
 

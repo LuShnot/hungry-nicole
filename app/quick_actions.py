@@ -4,8 +4,10 @@ from urllib.parse import urlsplit
 ACTIONS=(('chatgpt','GPT 网页','web'),('codex','打开 Codex','code'),
          ('chat','角色闲聊','chat'),('report','数据日报','report'),
          ('refresh','刷新全部数据','refresh'),('settings','设置','settings'),
-         ('website','自定义网页','web'))
-DEFAULT_ACTION='chatgpt'
+         ('website','自定义网页','web'),('magicneko','妮可主页','web'))
+DEFAULT_ACTION='magicneko'
+NICOLE_HOME_URL='https://magicneko.com/'
+NICOLE_GAMES_URL='https://magicneko.com/game-case'
 
 def action_info(value):
     return next((item for item in ACTIONS if item[0]==value),ACTIONS[0])
